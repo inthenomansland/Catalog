@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PoC Lab — Research Catalog</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <div class="header-inner">
+            <div class="header-text">
+                <h1>pro<span style="color:#6DC52D">AV</span></h1>
+                <p>Proof of Concept Research Catalogue</p>
+            </div>
+            <div class="header-actions">
+                <button class="header-btn header-btn--outline" onclick="comingSoon(this)" data-label="Submit Report">Submit Report</button>
+                <button class="header-btn header-btn--filled" onclick="comingSoon(this)" data-label="Request a PoC">Request a PoC</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="filters-bar">
+        <div class="filters-inner">
+            <input type="text" id="search" placeholder="Search titles, products, summaries, tags...">
+            <select id="filter-manufacturer">
+                <option value="">All Manufacturers</option>
+            </select>
+            <select id="filter-category">
+                <option value="">All Categories</option>
+            </select>
+            <select id="filter-type">
+                <option value="">All Types</option>
+                <option value="Kit">Kit</option>
+                <option value="Program">Program</option>
+                <option value="Concept">Concept</option>
+            </select>
+            <button id="clear-filters">Clear</button>
+        </div>
+    </div>
+
+    <main>
+        <div class="results-bar">
+            <span id="results-count"></span>
+        </div>
+        <div id="catalog" class="catalog-grid"></div>
+        <div id="no-results" class="no-results hidden">
+            No results match your current filters.
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
