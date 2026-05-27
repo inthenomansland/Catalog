@@ -15,59 +15,7 @@
       "transmit"
     ]
   },
-  {
-    "title": "Sony FX6 Cinema Camera Evaluation",
-    "manufacturer": "Sony",
-    "productName": "FX6",
-    "productCategory": "Video",
-    "testType": "Kit",
-    "date": "2026-05-15",
-    "summary": "Full evaluation of the Sony FX6 cinema camera for live production use. Tested low-light performance, SDI output compatibility, and remote control via network.",
-    "frontPageDoc": "https://yourcompany.sharepoint.com/sites/PoCLab/Documents/Sony-FX6/summary.pdf",
-    "fullReport": "https://yourcompany.sharepoint.com/sites/PoCLab/Documents/Sony-FX6/full-report.docx",
-    "tags": [
-      "camera",
-      "cinema",
-      "SDI",
-      "live production"
-    ]
-  },
-  {
-    "title": "Sennheiser EW-DX Wireless Mic System",
-    "manufacturer": "Sennheiser",
-    "productName": "EW-DX EM 4 DANTE",
-    "productCategory": "Audio",
-    "testType": "Kit",
-    "date": "2026-04-28",
-    "summary": "Assessment of the EW-DX four-channel Dante receiver for studio and OB use. Focused on latency, RF performance in congested environments, and Dante network integration.",
-    "frontPageDoc": "https://yourcompany.sharepoint.com/sites/PoCLab/Documents/Sennheiser-EWDX/summary.pdf",
-    "fullReport": "https://yourcompany.sharepoint.com/sites/PoCLab/Documents/Sennheiser-EWDX/full-report.docx",
-    "tags": [
-      "wireless",
-      "audio",
-      "dante",
-      "RF",
-      "microphone"
-    ]
-  },
-  {
-    "title": "AI-Assisted Subtitling Workflow",
-    "manufacturer": "Internal",
-    "productName": "Custom Pipeline",
-    "productCategory": "Software",
-    "testType": "Concept",
-    "date": "2026-03-10",
-    "summary": "Proof of concept for an AI-driven live subtitling pipeline using Whisper and custom post-processing. Evaluated accuracy, latency, and integration with existing playout systems.",
-    "frontPageDoc": "https://yourcompany.sharepoint.com/sites/PoCLab/Documents/AI-Subtitling/summary.pdf",
-    "fullReport": "https://yourcompany.sharepoint.com/sites/PoCLab/Documents/AI-Subtitling/full-report.docx",
-    "tags": [
-      "AI",
-      "subtitling",
-      "accessibility",
-      "automation",
-      "Whisper"
-    ]
-  },
+
   {
     "title": "Ochno O-PC-4",
     "manufacturer": "Ochno",
