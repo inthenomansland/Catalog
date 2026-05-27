@@ -1,5 +1,28 @@
 [
   {
+    "title": "Ochno + Lightware Integration Video-Only Bench Test",
+    "manufacturer": "Ochno, Lightware",
+    "productName": "Ochno + Lightware Integration",
+    "productCategory": "AV Switching, Video Distribution, USB-C Connectivity",
+    "testType": "Concept",
+    "date": "2025-09-18",
+    "summary": "Bench testing was carried out to assess Ochno and Lightware integration in video-only mode after USB functionality was removed from the signal path. Removing USB improved switching consistency and eliminated the random delays seen in previous testing. However, video switching still took between 7 and 12 seconds depending on source and scenario. Enabling the Lightware Welcome Screen reduced switching time by approximately 3 seconds by maintaining the display’s 5V state, but the remaining delay appears to be inherent to the Ochno hardware’s switching and EDID negotiation process.",
+    "frontPageDoc": null,
+    "fullReport": "https://proavcom.sharepoint.com/:w:/r/teams/PoCLab/Shared%20Documents/General/PoC%20Lab%20Reports/Final%20Reports%202025/Ochno%20+%20Lightware%20(No%20USB)%20Bench%20Test.docx?d=w0bbb129dbfd54ec08cfd0cb770520c18&csf=1&web=1&e=NrqrPI",
+    "tags": [
+      "Ochno",
+      "Lightware",
+      "video switching",
+      "USB-C",
+      "EDID",
+      "bench test",
+      "PoC",
+      "AV switching",
+      "Welcome Screen",
+      "laptop connectivity"
+    ]
+  },
+  {
     "title": "Lightware UCX-1x1-C40",
     "manufacturer": "Lightware",
     "productName": "UCX-1x1-C40",
@@ -9,7 +32,11 @@
     "summary": "Bench test to find and test limitations and discover features.",
     "frontPageDoc": null,
     "fullReport": "https://proavcom.sharepoint.com/:w:/r/teams/PoCLab/Shared%20Documents/General/PoC%20Lab%20Reports/Final%20Reports%202025/Lightware%20UCX-1x1-C40%20Bench%20Test.docx?d=wdaf1250de62c47f78fb8eb696e36275f&csf=1&web=1&e=dBxwxS",
-    "tags": ["Lightware", "video", "transmit"]
+    "tags": [
+      "Lightware",
+      "video",
+      "transmit"
+    ]
   },
   {
     "title": "Ochno O-PC-4",
@@ -21,6 +48,10 @@
     "summary": "Testing the new Ochno O-PC-4 to find its key features and limitations.",
     "frontPageDoc": null,
     "fullReport": "https://proavcom.sharepoint.com/:w:/r/teams/PoCLab/Shared%20Documents/General/PoC%20Lab%20Reports/Final%20Reports%202025/Ochno%20O-PC-4%20Bench%20Test%20.docx?d=wf11331908d0244a597913618cfcbdd74&csf=1&web=1&e=0W6O6P",
-    "tags": ["Hardware", "Video", "Ochno"]
+    "tags": [
+      "Hardware",
+      "Video",
+      "Ochno"
+    ]
   }
 ]
