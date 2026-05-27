@@ -1,5 +1,28 @@
 [
   {
+    "title": "Vieunite Textura Digital Canvas Device Report",
+    "manufacturer": "Vieunite",
+    "productName": "Textura 27-inch, Textura 55-inch",
+    "productCategory": "",
+    "testType": "Kit",
+    "date": "2026-05-23",
+    "summary": "Easy-to-deploy digital canvas range with strong visual quality and a framed artwork aesthetic. Best suited to simple signage or decorative use where Wi-Fi, cloud management and licensing requirements are acceptable.",
+    "frontPageDoc": null,
+    "fullReport": "https://proavcom.sharepoint.com/:w:/r/teams/PoCLab/Shared%20Documents/General/PoC%20Lab%20Reports/Final%20Reports%202026/Vieunite%20Textura%20Pro%20-%20Device%20Report.docx?d=w0de16f212da54fca8541d7fba5910e74&csf=1&web=1&e=FzywiS",
+    "tags": [
+      "Vieunite",
+      "Textura",
+      "digital canvas",
+      "digital signage",
+      "artwork display",
+      "cloud management",
+      "Wi-Fi",
+      "HDMI",
+      "4K display",
+      "PoC"
+    ]
+  },
+  {
     "title": "Lindy 4-Port iPower Switch Device Report",
     "manufacturer": "Lindy",
     "productName": "4-Port iPower Switch",
@@ -65,9 +88,9 @@
     "productCategory": "",
     "testType": "Kit",
     "date": "2025-04-23",
-    "summary": "The TC Bar M delivered excellent speaker quality, strong Dante integration, and fast deployment. Camera performance was average and best suited to rooms within 3ÃÂ¢ÃÂÃÂ4 metres, limiting suitability for larger spaces.",
+    "summary": "The TC Bar M delivered excellent speaker quality, strong Dante integration, and fast deployment. Camera performance was average and best suited to rooms within 3ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ4 metres, limiting suitability for larger spaces.",
     "frontPageDoc": null,
-    "fullReport": "The TC Bar M delivered excellent speaker quality, strong Dante integration, and fast deployment. Camera performance was average and best suited to rooms within 3ÃÂ¢ÃÂÃÂ4 metres, limiting suitability for larger spaces.",
+    "fullReport": "The TC Bar M delivered excellent speaker quality, strong Dante integration, and fast deployment. Camera performance was average and best suited to rooms within 3ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ4 metres, limiting suitability for larger spaces.",
     "tags": [
       "Sennheiser",
       "TeamConnect Bar",
@@ -100,7 +123,7 @@
     "productCategory": "AV Switching, Video Distribution, USB-C Connectivity",
     "testType": "Concept",
     "date": "2025-09-18",
-    "summary": "Bench testing was carried out to assess Ochno and Lightware integration in video-only mode after USB functionality was removed from the signal path. Removing USB improved switching consistency and eliminated the random delays seen in previous testing. However, video switching still took between 7 and 12 seconds depending on source and scenario. Enabling the Lightware Welcome Screen reduced switching time by approximately 3 seconds by maintaining the displays 5V state, but the remaining delay appears to be inherent to the Ochno hardwareÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂs switching and EDID negotiation process.",
+    "summary": "Bench testing was carried out to assess Ochno and Lightware integration in video-only mode after USB functionality was removed from the signal path. Removing USB improved switching consistency and eliminated the random delays seen in previous testing. However, video switching still took between 7 and 12 seconds depending on source and scenario. Enabling the Lightware Welcome Screen reduced switching time by approximately 3 seconds by maintaining the displays 5V state, but the remaining delay appears to be inherent to the Ochno hardwareÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂs switching and EDID negotiation process.",
     "frontPageDoc": null,
     "fullReport": "https://proavcom.sharepoint.com/:w:/r/teams/PoCLab/Shared%20Documents/General/PoC%20Lab%20Reports/Final%20Reports%202025/Ochno%20+%20Lightware%20(No%20USB)%20Bench%20Test.docx?d=w0bbb129dbfd54ec08cfd0cb770520c18&csf=1&web=1&e=NrqrPI",
     "tags": [
