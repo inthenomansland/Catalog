@@ -147,3 +147,62 @@ function comingSoon(btn) {
         btn.style.opacity = '';
     }, 2000);
 }
+
+// ── Request a PoC Modal ───────────────────────────────────────────────────
+function openPoCModal() {
+    document.getElementById('poc-modal-overlay').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    document.getElementById('poc-job-name').focus();
+}
+
+function closePoCModal(event) {
+    if (event && event.target !== document.getElementById('poc-modal-overlay')) return;
+    document.getElementById('poc-modal-overlay').classList.add('hidden');
+    document.body.style.overflow = '';
+    document.getElementById('poc-form').reset();
+}
+
+function submitPoCRequest(event) {
+    event.preventDefault();
+
+    const jobName  = document.getElementById('poc-job-name').value.trim();
+    const scope    = document.getElementById('poc-scope').value.trim();
+    const outcomes = document.getElementById('poc-outcomes').value.trim();
+    const dates    = document.getElementById('poc-dates').value.trim();
+    const persons  = document.getElementById('poc-persons').value.trim();
+
+    const subject = jobName ? `PoC Request: ${jobName}` : 'New PoC Request';
+
+    const body = [
+        'POC LAB REQUEST',
+        '================',
+        '',
+        `Job Name:                 ${jobName  || 'Not provided'}`,
+        `Proposed Dates:           ${dates    || 'Not provided'}`,
+        `Persons Conducting Test:  ${persons  || 'Not provided'}`,
+        '',
+        'SCOPE',
+        '-----',
+        scope    || 'Not provided',
+        '',
+        'EXPECTED OUTCOMES',
+        '-----------------',
+        outcomes || 'Not provided',
+        '',
+        '---',
+        'Submitted via proAV PoC Lab Catalogue',
+    ].join('\n');
+
+    window.location.href = `mailto:poc.lab@proav.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    document.getElementById('poc-modal-overlay').classList.add('hidden');
+    document.body.style.overflow = '';
+    document.getElementById('poc-form').reset();
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.getElementById('poc-modal-overlay').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+});

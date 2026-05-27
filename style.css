@@ -278,6 +278,147 @@ main {
 
 .btn-secondary:hover { background: #e5e7eb; }
 
+/* ── Modal ── */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    backdrop-filter: blur(2px);
+}
+
+.modal {
+    background: white;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    background: #0d0d0d;
+    border-bottom: 3px solid #6DC52D;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.modal-header h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 0.2rem;
+}
+
+.modal-header p {
+    font-size: 0.8rem;
+    color: #8892b0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: #8892b0;
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    flex-shrink: 0;
+    transition: color 0.1s;
+}
+
+.modal-close:hover { color: white; }
+
+.modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+}
+
+.modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.modal-field label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.modal-field input,
+.modal-field textarea {
+    padding: 0.55rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-family: inherit;
+    color: #1a1a2e;
+    width: 100%;
+}
+
+.modal-field textarea {
+    min-height: 80px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.modal-field input:focus,
+.modal-field textarea:focus {
+    outline: none;
+    border-color: #6DC52D;
+    box-shadow: 0 0 0 3px rgba(109,197,45,0.15);
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #f3f4f6;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.65rem;
+}
+
+.modal-btn-cancel {
+    padding: 0.55rem 1.25rem;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 7px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.modal-btn-cancel:hover { background: #e5e7eb; }
+
+.modal-btn-submit {
+    padding: 0.55rem 1.5rem;
+    background: #6DC52D;
+    border: none;
+    border-radius: 7px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #0d0d0d;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.modal-btn-submit:hover { background: #5aad1f; }
+
 /* ── No Results ── */
 .no-results {
     text-align: center;

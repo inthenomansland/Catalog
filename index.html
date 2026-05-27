@@ -16,7 +16,7 @@
             </div>
             <div class="header-actions">
                 <button class="header-btn header-btn--outline" onclick="comingSoon(this)" data-label="Submit Report">Submit Report</button>
-                <button class="header-btn header-btn--filled" onclick="comingSoon(this)" data-label="Request a PoC">Request a PoC</button>
+                <button class="header-btn header-btn--filled" onclick="openPoCModal()">Request a PoC</button>
             </div>
         </div>
     </header>
@@ -49,6 +49,53 @@
             No results match your current filters.
         </div>
     </main>
+
+    <!-- Request a PoC Modal -->
+    <div id="poc-modal-overlay" class="modal-overlay hidden" onclick="closePoCModal(event)">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <h2>Request a PoC</h2>
+                    <p>Complete the form below and submit to send your request for review.</p>
+                </div>
+                <button class="modal-close" onclick="closePoCModal()">&times;</button>
+            </div>
+            <form id="poc-form" onsubmit="submitPoCRequest(event)">
+                <div class="modal-body">
+
+                    <div class="modal-field">
+                        <label for="poc-job-name">Job Name</label>
+                        <input type="text" id="poc-job-name" placeholder="e.g. Meeting Room AV Upgrade — Floor 3">
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="poc-scope">Scope</label>
+                        <textarea id="poc-scope" placeholder="Describe what the PoC will cover and what equipment or concepts will be tested..."></textarea>
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="poc-outcomes">Expected Outcomes</label>
+                        <textarea id="poc-outcomes" placeholder="What do you expect to learn or prove from this test?"></textarea>
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="poc-dates">Proposed Dates</label>
+                        <input type="text" id="poc-dates" placeholder="e.g. Week commencing 2 June 2026">
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="poc-persons">Persons Conducting the Test</label>
+                        <input type="text" id="poc-persons" placeholder="e.g. Ashton Lindemann, John Smith">
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="modal-btn-cancel" onclick="closePoCModal()">Cancel</button>
+                    <button type="submit" class="modal-btn-submit">Send Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>
