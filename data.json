@@ -9,18 +9,7 @@
     "summary": "Easy-to-deploy digital canvas range with strong visual quality and a framed artwork aesthetic. Best suited to simple signage or decorative use where Wi-Fi, cloud management and licensing requirements are acceptable.",
     "frontPageDoc": null,
     "fullReport": "https://proavcom.sharepoint.com/:w:/r/teams/PoCLab/Shared%20Documents/General/PoC%20Lab%20Reports/Final%20Reports%202026/Vieunite%20Textura%20Pro%20-%20Device%20Report.docx?d=w0de16f212da54fca8541d7fba5910e74&csf=1&web=1&e=FzywiS",
-    "tags": [
-      "Vieunite",
-      "Textura",
-      "digital canvas",
-      "digital signage",
-      "artwork display",
-      "cloud management",
-      "Wi-Fi",
-      "HDMI",
-      "4K display",
-      "PoC"
-    ]
+    "tags": ["Vieunite", "Textura", "digital canvas", "digital signage", "artwork display", "cloud management", "Wi-Fi", "HDMI", "4K display", "PoC"]
   },
   {
     "title": "Lindy 4-Port iPower Switch Device Report",
@@ -32,19 +21,7 @@
     "summary": "Compact network-controlled PDU with remote outlet control, energy monitoring and broad protocol support. Main concerns are exposed physical controls and less straightforward network identification during commissioning.",
     "frontPageDoc": null,
     "fullReport": "https://proavcom.sharepoint.com/:w:/r/teams/PoCLab/Shared%20Documents/General/PoC%20Lab%20Reports/Final%20Reports%202026/Lindy%204%20Port%20PDU-%20Device%20Report.docx?d=w9e0731d98f114130a422422af743ee00&csf=1&web=1&e=nic8qB",
-    "tags": [
-      "Lindy",
-      "iPower Switch",
-      "PDU",
-      "power management",
-      "remote power control",
-      "energy monitoring",
-      "SNMP",
-      "MQTT",
-      "Modbus TCP",
-      "AV infrastructure",
-      "PoC"
-    ]
+    "tags": ["Lindy", "iPower Switch", "PDU", "power management", "remote power control", "energy monitoring", "SNMP", "MQTT", "Modbus TCP", "AV infrastructure", "PoC"]
   },
   {
     "title": "Yealink S40 + MTower Bench Test",
@@ -56,18 +33,7 @@
     "summary": "The S40 and MTower performed well for audio quality, camera quality, and ease of deployment. Main limitations were inconsistent camera switching, limited MTower image tuning, and overly sensitive tracking modes.",
     "frontPageDoc": null,
     "fullReport": "https://proavcom.sharepoint.com/:w:/r/teams/PoCLab/Shared%20Documents/General/PoC%20Lab%20Reports/Final%20Reports%202025/Yealink%20S40%20+%20MTower%20Bench%20Test.docx?d=we77ce2f4edb04ddeb884dd8fe4b849a9&csf=1&web=1&e=7Xf8A3",
-    "tags": [
-      "Yealink",
-      "S40",
-      "MTower",
-      "Microsoft Teams Rooms",
-      "video conferencing",
-      "audio conferencing",
-      "IntelliFocus",
-      "speaker tracking",
-      "bench test",
-      "PoC"
-    ]
+    "tags": ["Yealink", "S40", "MTower", "Microsoft Teams Rooms", "video conferencing", "audio conferencing", "IntelliFocus", "speaker tracking", "bench test", "PoC"]
   },
   {
     "title": "Sennheiser TeamConnect Bar Bench Test",
@@ -76,21 +42,10 @@
     "productCategory": "",
     "testType": "Kit",
     "date": "2025-04-23",
-    "summary": "The TC Bar M delivered excellent speaker quality, strong Dante integration, and fast deployment. Camera performance was average and best suited to rooms within 3ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ4 metres, limiting suitability for larger spaces.",
+    "summary": "The TC Bar M delivered excellent speaker quality, strong Dante integration, and fast deployment. Camera performance was average and best suited to rooms within 3-4 metres, limiting suitability for larger spaces.",
     "frontPageDoc": null,
-    "fullReport": "The TC Bar M delivered excellent speaker quality, strong Dante integration, and fast deployment. Camera performance was average and best suited to rooms within 3ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ4 metres, limiting suitability for larger spaces.",
-    "tags": [
-      "Sennheiser",
-      "TeamConnect Bar",
-      "TC Bar M",
-      "video conferencing",
-      "audio conferencing",
-      "Dante",
-      "camera framing",
-      "AEC",
-      "bench test",
-      "PoC"
-    ]
+    "fullReport": null,
+    "tags": ["Sennheiser", "TeamConnect Bar", "TC Bar M", "video conferencing", "audio conferencing", "Dante", "camera framing", "AEC", "bench test", "PoC"]
   },
   {
     "title": "Plexus AVN-4 & AVN-VA Bench Test",
@@ -101,7 +56,7 @@
     "date": "2025-04-12",
     "summary": "The Plexus AVN series showed fast switching, flexible I/O, Dante integration, and an intuitive web GUI. Key concerns were USB 2.0 limitations, heat output, exposed SFP ports, and inconsistent switching when EDIDs/resolutions were not fixed.",
     "frontPageDoc": null,
-    "fullReport": "The Plexus AVN series showed fast switching, flexible I/O, Dante integration, and an intuitive web GUI. Key concerns were USB 2.0 limitations, heat output, exposed SFP ports, and inconsistent switching when EDIDs/resolutions were not fixed.",
+    "fullReport": null,
     "tags": []
   },
   {
@@ -111,21 +66,10 @@
     "productCategory": "AV Switching, Video Distribution, USB-C Connectivity",
     "testType": "Concept",
     "date": "2025-09-18",
-    "summary": "Bench testing was carried out to assess Ochno and Lightware integration in video-only mode after USB functionality was removed from the signal path. Removing USB improved switching consistency and eliminated the random delays seen in previous testing. However, video switching still took between 7 and 12 seconds depending on source and scenario. Enabling the Lightware Welcome Screen reduced switching time by approximately 3 seconds by maintaining the displays 5V state, but the remaining delay appears to be inherent to the Ochno hardwares switching and EDID negotiation process.",
+    "summary": "Bench testing was carried out to assess Ochno and Lightware integration in video-only mode after USB functionality was removed from the signal path. Removing USB improved switching consistency and eliminated the random delays seen in previous testing. However, video switching still took between 7 and 12 seconds depending on source and scenario. Enabling the Lightware Welcome Screen reduced switching time by approximately 3 seconds by maintaining the displays 5V state, but the remaining delay appears to be inherent to the Ochno hardware's switching and EDID negotiation process.",
     "frontPageDoc": null,
     "fullReport": "https://proavcom.sharepoint.com/:w:/r/teams/PoCLab/Shared%20Documents/General/PoC%20Lab%20Reports/Final%20Reports%202025/Ochno%20+%20Lightware%20(No%20USB)%20Bench%20Test.docx?d=w0bbb129dbfd54ec08cfd0cb770520c18&csf=1&web=1&e=NrqrPI",
-    "tags": [
-      "Ochno",
-      "Lightware",
-      "video switching",
-      "USB-C",
-      "EDID",
-      "bench test",
-      "PoC",
-      "AV switching",
-      "Welcome Screen",
-      "laptop connectivity"
-    ]
+    "tags": ["Ochno", "Lightware", "video switching", "USB-C", "EDID", "bench test", "PoC", "AV switching", "Welcome Screen", "laptop connectivity"]
   },
   {
     "title": "Lightware UCX-1x1-C40",
@@ -137,11 +81,7 @@
     "summary": "Bench test to find and test limitations and discover features.",
     "frontPageDoc": null,
     "fullReport": "https://proavcom.sharepoint.com/:w:/r/teams/PoCLab/Shared%20Documents/General/PoC%20Lab%20Reports/Final%20Reports%202025/Lightware%20UCX-1x1-C40%20Bench%20Test.docx?d=wdaf1250de62c47f78fb8eb696e36275f&csf=1&web=1&e=dBxwxS",
-    "tags": [
-      "Lightware",
-      "video",
-      "transmit"
-    ]
+    "tags": ["Lightware", "video", "transmit"]
   },
   {
     "title": "Ochno O-PC-4",
@@ -153,10 +93,6 @@
     "summary": "Testing the new Ochno O-PC-4 to find its key features and limitations.",
     "frontPageDoc": null,
     "fullReport": "https://proavcom.sharepoint.com/:w:/r/teams/PoCLab/Shared%20Documents/General/PoC%20Lab%20Reports/Final%20Reports%202025/Ochno%20O-PC-4%20Bench%20Test%20.docx?d=wf11331908d0244a597913618cfcbdd74&csf=1&web=1&e=0W6O6P",
-    "tags": [
-      "Hardware",
-      "Video",
-      "Ochno"
-    ]
+    "tags": ["Hardware", "Video", "Ochno"]
   }
 ]
