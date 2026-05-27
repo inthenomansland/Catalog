@@ -1,5 +1,21 @@
 [
   {
+    "title": "Lightware UCX-1x1-C40",
+    "manufacturer": "Lightware",
+    "productName": "UCX-1x1-C40",
+    "productCategory": "Video",
+    "testType": "Kit",
+    "date": "2025-05-07",
+    "summary": "Bench test To find and test limitations and discover features",
+    "frontPageDoc": null,
+    "fullReport": "https://proavcom.sharepoint.com/:w:/r/teams/PoCLab/Shared%20Documents/General/PoC%20Lab%20Reports/Final%20Reports%202025/Lightware%20UCX-1x1-C40%20Bench%20Test.docx?d=wdaf1250de62c47f78fb8eb696e36275f&csf=1&web=1&e=dBxwxS",
+    "tags": [
+      "Lightware",
+      "video",
+      "transmit"
+    ]
+  },
+  {
     "title": "Sony FX6 Cinema Camera Evaluation",
     "manufacturer": "Sony",
     "productName": "FX6",
@@ -9,7 +25,12 @@
     "summary": "Full evaluation of the Sony FX6 cinema camera for live production use. Tested low-light performance, SDI output compatibility, and remote control via network.",
     "frontPageDoc": "https://yourcompany.sharepoint.com/sites/PoCLab/Documents/Sony-FX6/summary.pdf",
     "fullReport": "https://yourcompany.sharepoint.com/sites/PoCLab/Documents/Sony-FX6/full-report.docx",
-    "tags": ["camera", "cinema", "SDI", "live production"]
+    "tags": [
+      "camera",
+      "cinema",
+      "SDI",
+      "live production"
+    ]
   },
   {
     "title": "Sennheiser EW-DX Wireless Mic System",
@@ -21,7 +42,13 @@
     "summary": "Assessment of the EW-DX four-channel Dante receiver for studio and OB use. Focused on latency, RF performance in congested environments, and Dante network integration.",
     "frontPageDoc": "https://yourcompany.sharepoint.com/sites/PoCLab/Documents/Sennheiser-EWDX/summary.pdf",
     "fullReport": "https://yourcompany.sharepoint.com/sites/PoCLab/Documents/Sennheiser-EWDX/full-report.docx",
-    "tags": ["wireless", "audio", "dante", "RF", "microphone"]
+    "tags": [
+      "wireless",
+      "audio",
+      "dante",
+      "RF",
+      "microphone"
+    ]
   },
   {
     "title": "AI-Assisted Subtitling Workflow",
@@ -33,9 +60,15 @@
     "summary": "Proof of concept for an AI-driven live subtitling pipeline using Whisper and custom post-processing. Evaluated accuracy, latency, and integration with existing playout systems.",
     "frontPageDoc": "https://yourcompany.sharepoint.com/sites/PoCLab/Documents/AI-Subtitling/summary.pdf",
     "fullReport": "https://yourcompany.sharepoint.com/sites/PoCLab/Documents/AI-Subtitling/full-report.docx",
-    "tags": ["AI", "subtitling", "accessibility", "automation", "Whisper"]
+    "tags": [
+      "AI",
+      "subtitling",
+      "accessibility",
+      "automation",
+      "Whisper"
+    ]
   },
-   {
+  {
     "title": "Ochno O-PC-4",
     "manufacturer": "Ochno",
     "productName": "O-PC-4",
@@ -45,6 +78,10 @@
     "summary": "Testing the new Ochno O-PC-4 to find its key features and limitations",
     "frontPageDoc": "https://yourcompany.sharepoint.com/sites/PoCLab/Documents/AI-Subtitling/summary.pdf",
     "fullReport": "https://proavcom.sharepoint.com/:w:/r/teams/PoCLab/Shared%20Documents/General/PoC%20Lab%20Reports/Final%20Reports%202025/Ochno%20O-PC-4%20Bench%20Test%20.docx?d=wf11331908d0244a597913618cfcbdd74&csf=1&web=1&e=0W6O6P",
-    "tags": ["Hardware", "Video", "Ochno"]
+    "tags": [
+      "Hardware",
+      "Video",
+      "Ochno"
+    ]
   }
 ]
