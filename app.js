@@ -225,6 +225,63 @@ function comingSoon(btn) {
     }, 2000);
 }
 
+// ── Request Bench Test Modal ──────────────────────────────────────────────
+function openBenchModal() {
+    document.getElementById('bench-modal-overlay').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    document.getElementById('bench-job-name').focus();
+}
+
+function closeBenchModal(event) {
+    if (event && event.target !== document.getElementById('bench-modal-overlay')) return;
+    document.getElementById('bench-modal-overlay').classList.add('hidden');
+    document.body.style.overflow = '';
+    document.getElementById('bench-form').reset();
+}
+
+function submitBenchRequest(event) {
+    event.preventDefault();
+
+    const jobName  = document.getElementById('bench-job-name').value.trim();
+    const scope    = document.getElementById('bench-scope').value.trim();
+    const outcomes = document.getElementById('bench-outcomes').value.trim();
+    const kit      = document.getElementById('bench-kit').value.trim();
+    const dates    = document.getElementById('bench-dates').value.trim();
+    const persons  = document.getElementById('bench-persons').value.trim();
+
+    const subject = jobName ? `Bench Test Request: ${jobName}` : 'New Bench Test Request';
+
+    const body = [
+        'BENCH TEST REQUEST',
+        '==================',
+        '',
+        `Job Name:                 ${jobName  || 'Not provided'}`,
+        `Proposed Dates:           ${dates    || 'Not provided'}`,
+        `Persons Conducting Test:  ${persons  || 'Not provided'}`,
+        '',
+        'SCOPE',
+        '-----',
+        scope    || 'Not provided',
+        '',
+        'EXPECTED OUTCOMES',
+        '-----------------',
+        outcomes || 'Not provided',
+        '',
+        'KIT / EQUIPMENT REQUIRED',
+        '------------------------',
+        kit      || 'Not provided',
+        '',
+        '---',
+        'Submitted via proAV PoC Lab Catalogue',
+    ].join('\n');
+
+    window.location.href = `mailto:poc.lab@proav.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    document.getElementById('bench-modal-overlay').classList.add('hidden');
+    document.body.style.overflow = '';
+    document.getElementById('bench-form').reset();
+}
+
 // ── Request a PoC Modal ───────────────────────────────────────────────────
 function openPoCModal() {
     document.getElementById('poc-modal-overlay').classList.remove('hidden');
@@ -280,6 +337,7 @@ function submitPoCRequest(event) {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         document.getElementById('poc-modal-overlay').classList.add('hidden');
+        document.getElementById('bench-modal-overlay').classList.add('hidden');
         document.body.style.overflow = '';
     }
 });

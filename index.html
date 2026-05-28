@@ -16,6 +16,7 @@
             </div>
             <div class="header-actions">
                 <button class="header-btn header-btn--outline" onclick="comingSoon(this)" data-label="Submit Report">Submit Report</button>
+                <button class="header-btn header-btn--outline" onclick="openBenchModal()">Request Bench Test</button>
                 <button class="header-btn header-btn--filled" onclick="openPoCModal()">Request a PoC</button>
             </div>
         </div>
@@ -49,6 +50,58 @@
             No results match your current filters.
         </div>
     </main>
+
+    <!-- Request Bench Test Modal -->
+    <div id="bench-modal-overlay" class="modal-overlay hidden" onclick="closeBenchModal(event)">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <h2>Request a Bench Test</h2>
+                    <p>Complete the form below and submit to send your request for review.</p>
+                </div>
+                <button class="modal-close" onclick="closeBenchModal()">&times;</button>
+            </div>
+            <form id="bench-form" onsubmit="submitBenchRequest(event)">
+                <div class="modal-body">
+
+                    <div class="modal-field">
+                        <label for="bench-job-name">Job Name</label>
+                        <input type="text" id="bench-job-name" placeholder="e.g. Boardroom Display Evaluation">
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="bench-scope">Scope</label>
+                        <textarea id="bench-scope" placeholder="Describe what the bench test will cover..."></textarea>
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="bench-outcomes">Expected Outcomes</label>
+                        <textarea id="bench-outcomes" placeholder="What do you expect to learn or prove from this test?"></textarea>
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="bench-kit">Kit / Equipment Required</label>
+                        <textarea id="bench-kit" placeholder="List the equipment needed for this bench test, e.g. Sony FX6, Blackmagic ATEM Mini..."></textarea>
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="bench-dates">Proposed Dates</label>
+                        <input type="text" id="bench-dates" placeholder="e.g. Week commencing 2 June 2026">
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="bench-persons">Persons Conducting the Test</label>
+                        <input type="text" id="bench-persons" placeholder="e.g. Ashton Lindemann, John Smith">
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="modal-btn-cancel" onclick="closeBenchModal()">Cancel</button>
+                    <button type="submit" class="modal-btn-submit">Send Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Request a PoC Modal -->
     <div id="poc-modal-overlay" class="modal-overlay hidden" onclick="closePoCModal(event)">
