@@ -453,6 +453,26 @@ main {
     gap: 1.1rem;
 }
 
+.modal-attachment-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-left: 3px solid #6DC52D;
+    border-radius: 6px;
+    padding: 0.7rem 0.9rem;
+    font-size: 0.82rem;
+    color: #374151;
+    line-height: 1.5;
+}
+
+.attachment-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 0.05rem;
+}
+
 .modal-field {
     display: flex;
     flex-direction: column;

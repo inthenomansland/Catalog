@@ -15,7 +15,7 @@
                 <p>Proof of Concept Research Catalogue</p>
             </div>
             <div class="header-actions">
-                <button class="header-btn header-btn--outline" onclick="comingSoon(this)" data-label="Submit Report">Submit Report</button>
+                <button class="header-btn header-btn--outline" onclick="openSubmitModal()">Submit Report</button>
                 <button class="header-btn header-btn--outline" onclick="openBenchModal()">Request Bench Test</button>
                 <button class="header-btn header-btn--filled" onclick="openPoCModal()">Request a PoC</button>
             </div>
@@ -50,6 +50,78 @@
             No results match your current filters.
         </div>
     </main>
+
+    <!-- Submit Report Modal -->
+    <div id="submit-modal-overlay" class="modal-overlay hidden" onclick="closeSubmitModal(event)">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <h2>Submit a Report</h2>
+                    <p>Complete the form and submit — Outlook will open with your details pre-filled.</p>
+                </div>
+                <button class="modal-close" onclick="closeSubmitModal()">&times;</button>
+            </div>
+            <form id="submit-form" onsubmit="submitReport(event)">
+                <div class="modal-body">
+
+                    <div class="modal-attachment-notice">
+                        <span class="attachment-icon">&#128206;</span>
+                        <span>Once Outlook opens, <strong>attach your report document</strong> to the email before sending.</span>
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="report-title">Report Title</label>
+                        <input type="text" id="report-title" placeholder="e.g. Sony FX6 Cinema Camera Evaluation">
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="report-manufacturer">Manufacturer</label>
+                        <input type="text" id="report-manufacturer" placeholder="e.g. Sony">
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="report-product">Product Name</label>
+                        <input type="text" id="report-product" placeholder="e.g. FX6">
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="report-category">Product Category</label>
+                        <input type="text" id="report-category" placeholder="e.g. Video, Audio, Software">
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="report-type">Test Type</label>
+                        <select id="report-type">
+                            <option value="">Select type...</option>
+                            <option value="Kit">Kit</option>
+                            <option value="Program">Program</option>
+                            <option value="Concept">Concept</option>
+                        </select>
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="report-date">Date of Test</label>
+                        <input type="date" id="report-date">
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="report-summary">Summary</label>
+                        <textarea id="report-summary" placeholder="Brief overview of what was tested and key findings..."></textarea>
+                    </div>
+
+                    <div class="modal-field">
+                        <label for="report-submitter">Your Name</label>
+                        <input type="text" id="report-submitter" placeholder="e.g. John Smith">
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="modal-btn-cancel" onclick="closeSubmitModal()">Cancel</button>
+                    <button type="submit" class="modal-btn-submit">Open in Outlook</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Request Bench Test Modal -->
     <div id="bench-modal-overlay" class="modal-overlay hidden" onclick="closeBenchModal(event)">

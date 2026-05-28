@@ -225,6 +225,72 @@ function comingSoon(btn) {
     }, 2000);
 }
 
+// ── Submit Report Modal ───────────────────────────────────────────────────
+// TODO (Docker migration): Replace mailto approach with a proper file upload
+// backend. The form should POST to an API endpoint that:
+//   - Accepts the report metadata + attached document(s)
+//   - Stores files to SharePoint / company storage
+//   - Creates a draft entry in data.json pending admin review/approval
+//   - Sends a notification email to poc.lab@proav.com
+// For now, mailto opens Outlook and the user attaches documents manually.
+
+function openSubmitModal() {
+    document.getElementById('submit-modal-overlay').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    document.getElementById('report-title').focus();
+    document.getElementById('report-date').value = new Date().toISOString().split('T')[0];
+}
+
+function closeSubmitModal(event) {
+    if (event && event.target !== document.getElementById('submit-modal-overlay')) return;
+    document.getElementById('submit-modal-overlay').classList.add('hidden');
+    document.body.style.overflow = '';
+    document.getElementById('submit-form').reset();
+}
+
+function submitReport(event) {
+    event.preventDefault();
+
+    const title     = document.getElementById('report-title').value.trim();
+    const mfr       = document.getElementById('report-manufacturer').value.trim();
+    const product   = document.getElementById('report-product').value.trim();
+    const category  = document.getElementById('report-category').value.trim();
+    const type      = document.getElementById('report-type').value;
+    const date      = document.getElementById('report-date').value;
+    const summary   = document.getElementById('report-summary').value.trim();
+    const submitter = document.getElementById('report-submitter').value.trim();
+
+    const subject = title ? `Report Submission: ${title}` : 'New Report Submission';
+
+    const body = [
+        'REPORT SUBMISSION',
+        '=================',
+        '',
+        `Report Title:     ${title     || 'Not provided'}`,
+        `Manufacturer:     ${mfr       || 'Not provided'}`,
+        `Product Name:     ${product   || 'Not provided'}`,
+        `Category:         ${category  || 'Not provided'}`,
+        `Test Type:        ${type      || 'Not provided'}`,
+        `Date of Test:     ${date      || 'Not provided'}`,
+        `Submitted By:     ${submitter || 'Not provided'}`,
+        '',
+        'SUMMARY',
+        '-------',
+        summary || 'Not provided',
+        '',
+        '---',
+        '⚠ IMPORTANT: Please attach your report document(s) to this email before sending.',
+        '',
+        'Submitted via proAV PoC Lab Catalogue',
+    ].join('\n');
+
+    window.location.href = `mailto:poc.lab@proav.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    document.getElementById('submit-modal-overlay').classList.add('hidden');
+    document.body.style.overflow = '';
+    document.getElementById('submit-form').reset();
+}
+
 // ── Request Bench Test Modal ──────────────────────────────────────────────
 function openBenchModal() {
     document.getElementById('bench-modal-overlay').classList.remove('hidden');
@@ -336,8 +402,9 @@ function submitPoCRequest(event) {
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        document.getElementById('poc-modal-overlay').classList.add('hidden');
+        document.getElementById('submit-modal-overlay').classList.add('hidden');
         document.getElementById('bench-modal-overlay').classList.add('hidden');
+        document.getElementById('poc-modal-overlay').classList.add('hidden');
         document.body.style.overflow = '';
     }
 });
