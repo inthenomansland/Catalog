@@ -64,10 +64,10 @@ header {
     border-color: #5aad1f;
 }
 
-header h1 {
-    font-size: 1.75rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
+.header-logo {
+    height: 2.2rem;
+    width: auto;
+    display: block;
 }
 
 header p {
