@@ -104,10 +104,7 @@ function buildWhatsNewSection(entries) {
 
     const header = document.createElement('div');
     header.className = 'whats-new-header';
-    header.innerHTML = `
-        <h2 class="whats-new-title">What's New</h2>
-        <p class="whats-new-sub">Reports added in the last 28 days</p>
-    `;
+    header.innerHTML = `<h2 class="whats-new-title">What's New</h2>`;
     section.appendChild(header);
 
     const grid = document.createElement('div');
@@ -181,7 +178,7 @@ function render(entries, filtersActive) {
     }
 
     noResults.classList.add('hidden');
-    count.textContent = `${entries.length} report${entries.length !== 1 ? 's' : ''}`;
+    count.textContent = filtersActive ? `${entries.length} result${entries.length !== 1 ? 's' : ''}` : '';
 
     if (!filtersActive) {
         const recent = entries.filter(e => isRecent(e.date));
