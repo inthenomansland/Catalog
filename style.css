@@ -152,6 +152,112 @@ main {
     text-transform: uppercase;
 }
 
+/* ── What's New ── */
+.whats-new-section {
+    background: #0d0d0d;
+    border-radius: 12px;
+    padding: 1.5rem 1.75rem 1.75rem;
+    margin-bottom: 2.5rem;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #222;
+}
+
+.whats-new-section::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: #6DC52D;
+}
+
+.whats-new-header {
+    margin-bottom: 1.25rem;
+}
+
+.whats-new-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: white;
+    letter-spacing: 0.02em;
+}
+
+.whats-new-sub {
+    font-size: 0.8rem;
+    color: #6DC52D;
+    margin-top: 0.25rem;
+}
+
+.whats-new-section .card {
+    background: #1a1c24;
+    border-color: #2a2d38;
+}
+
+.whats-new-section .card:hover {
+    box-shadow: 0 6px 20px rgba(109,197,45,0.2);
+    border-color: #6DC52D;
+    transform: translateY(-2px);
+}
+
+.whats-new-section .card-title   { color: #f1f5f9; }
+.whats-new-section .card-summary { color: #94a3b8; }
+.whats-new-section .meta-item    { color: #64748b; }
+.whats-new-section .meta-item strong { color: #cbd5e1; }
+.whats-new-section .card-actions { border-top-color: #2a2d38; }
+
+.whats-new-section .btn-secondary {
+    background: #2a2d38;
+    color: #cbd5e1;
+    border-color: #374151;
+}
+
+.whats-new-section .btn-secondary:hover { background: #374151; }
+
+/* ── Grouped catalog ── */
+.catalog-grouped { }
+
+.type-group {
+    margin-bottom: 2.75rem;
+}
+
+.group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid #e1e4e8;
+}
+
+.group-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.group-accent {
+    display: block;
+    width: 4px;
+    height: 1.35rem;
+    background: #6DC52D;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.group-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0d0d0d;
+    letter-spacing: 0.01em;
+}
+
+.group-count {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
 /* ── Cards ── */
 .catalog-grid {
     display: grid;
