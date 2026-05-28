@@ -486,7 +486,8 @@ main {
 }
 
 .modal-field input,
-.modal-field textarea {
+.modal-field textarea,
+.modal-field select {
     padding: 0.55rem 0.75rem;
     border: 1px solid #d1d5db;
     border-radius: 6px;

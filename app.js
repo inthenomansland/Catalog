@@ -295,6 +295,7 @@ function submitReport(event) {
 function openBenchModal() {
     document.getElementById('bench-modal-overlay').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    document.getElementById('bench-dates').value = new Date().toISOString().split('T')[0];
     document.getElementById('bench-job-name').focus();
 }
 
@@ -352,6 +353,7 @@ function submitBenchRequest(event) {
 function openPoCModal() {
     document.getElementById('poc-modal-overlay').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    document.getElementById('poc-dates').value = new Date().toISOString().split('T')[0];
     document.getElementById('poc-job-name').focus();
 }
 
