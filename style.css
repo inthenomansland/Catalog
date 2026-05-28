@@ -485,6 +485,26 @@ main {
     color: #374151;
 }
 
+.date-range {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+}
+
+.date-range-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.date-range-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
 .modal-field input,
 .modal-field textarea,
 .modal-field select {

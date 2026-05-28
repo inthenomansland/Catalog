@@ -295,7 +295,7 @@ function submitReport(event) {
 function openBenchModal() {
     document.getElementById('bench-modal-overlay').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-    document.getElementById('bench-dates').value = new Date().toISOString().split('T')[0];
+    document.getElementById('bench-date-start').value = new Date().toISOString().split('T')[0];
     document.getElementById('bench-job-name').focus();
 }
 
@@ -309,12 +309,13 @@ function closeBenchModal(event) {
 function submitBenchRequest(event) {
     event.preventDefault();
 
-    const jobName  = document.getElementById('bench-job-name').value.trim();
-    const scope    = document.getElementById('bench-scope').value.trim();
-    const outcomes = document.getElementById('bench-outcomes').value.trim();
-    const kit      = document.getElementById('bench-kit').value.trim();
-    const dates    = document.getElementById('bench-dates').value.trim();
-    const persons  = document.getElementById('bench-persons').value.trim();
+    const jobName   = document.getElementById('bench-job-name').value.trim();
+    const scope     = document.getElementById('bench-scope').value.trim();
+    const outcomes  = document.getElementById('bench-outcomes').value.trim();
+    const kit       = document.getElementById('bench-kit').value.trim();
+    const dateStart = document.getElementById('bench-date-start').value;
+    const dateEnd   = document.getElementById('bench-date-end').value;
+    const persons   = document.getElementById('bench-persons').value.trim();
 
     const subject = jobName ? `Bench Test Request: ${jobName}` : 'New Bench Test Request';
 
@@ -322,9 +323,10 @@ function submitBenchRequest(event) {
         'BENCH TEST REQUEST',
         '==================',
         '',
-        `Job Name:                 ${jobName  || 'Not provided'}`,
-        `Proposed Dates:           ${dates    || 'Not provided'}`,
-        `Persons Conducting Test:  ${persons  || 'Not provided'}`,
+        `Job Name:                 ${jobName   || 'Not provided'}`,
+        `Proposed Start Date:      ${dateStart || 'Not provided'}`,
+        `Proposed End Date:        ${dateEnd   || 'Not provided'}`,
+        `Persons Conducting Test:  ${persons   || 'Not provided'}`,
         '',
         'SCOPE',
         '-----',
@@ -353,7 +355,7 @@ function submitBenchRequest(event) {
 function openPoCModal() {
     document.getElementById('poc-modal-overlay').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-    document.getElementById('poc-dates').value = new Date().toISOString().split('T')[0];
+    document.getElementById('poc-date-start').value = new Date().toISOString().split('T')[0];
     document.getElementById('poc-job-name').focus();
 }
 
@@ -367,11 +369,12 @@ function closePoCModal(event) {
 function submitPoCRequest(event) {
     event.preventDefault();
 
-    const jobName  = document.getElementById('poc-job-name').value.trim();
-    const scope    = document.getElementById('poc-scope').value.trim();
-    const outcomes = document.getElementById('poc-outcomes').value.trim();
-    const dates    = document.getElementById('poc-dates').value.trim();
-    const persons  = document.getElementById('poc-persons').value.trim();
+    const jobName   = document.getElementById('poc-job-name').value.trim();
+    const scope     = document.getElementById('poc-scope').value.trim();
+    const outcomes  = document.getElementById('poc-outcomes').value.trim();
+    const dateStart = document.getElementById('poc-date-start').value;
+    const dateEnd   = document.getElementById('poc-date-end').value;
+    const persons   = document.getElementById('poc-persons').value.trim();
 
     const subject = jobName ? `PoC Request: ${jobName}` : 'New PoC Request';
 
@@ -379,9 +382,10 @@ function submitPoCRequest(event) {
         'POC LAB REQUEST',
         '================',
         '',
-        `Job Name:                 ${jobName  || 'Not provided'}`,
-        `Proposed Dates:           ${dates    || 'Not provided'}`,
-        `Persons Conducting Test:  ${persons  || 'Not provided'}`,
+        `Job Name:                 ${jobName   || 'Not provided'}`,
+        `Proposed Start Date:      ${dateStart || 'Not provided'}`,
+        `Proposed End Date:        ${dateEnd   || 'Not provided'}`,
+        `Persons Conducting Test:  ${persons   || 'Not provided'}`,
         '',
         'SCOPE',
         '-----',
