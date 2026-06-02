@@ -1,5 +1,22 @@
 [
   {
+    "title": "Cisco Mic Switching Between VLAN",
+    "manufacturer": "Cisco",
+    "productName": "Table Mic",
+    "productCategory": "Network",
+    "testType": "Concept",
+    "date": "2026-06-02",
+    "summary": "This Report looks into a test conducted on Dynamically switching a Cisco mic between VLANS for a divisible System set up. the test worked well and VLAN Switching was reliably Achieved. But this test Started out with the BetterBox Data Deadbolt D1000. this did not work and was disregarded from the test.",
+    "frontPageDoc": null,
+    "fullReport": null,
+    "tags": [
+      "BetterBox",
+      "Cisco",
+      "VLAN",
+      "Switching"
+    ]
+  },
+  {
     "title": "Codec Network Redundancy Switching",
     "manufacturer": "BetterBox",
     "productName": "Data Deadbolt D1000",
