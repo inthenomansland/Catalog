@@ -8,7 +8,7 @@
     "date": "2026-06-02",
     "summary": "This Report looks into a test conducted on Dynamically switching a Cisco mic between VLANS for a divisible System set up. the test worked well and VLAN Switching was reliably Achieved. But this test Started out with the BetterBox Data Deadbolt D1000. this did not work and was disregarded from the test.",
     "frontPageDoc": null,
-    "fullReport": null,
+    "fullReport": "https://proavcom.sharepoint.com/:b:/r/teams/PoCLab/Shared%20Documents/General/PoC%20Lab%20Reports/Final%20Reports%202026/Vlan%20Microphone%20Switching%20-%20PoC%20Report.pdf?csf=1&web=1&e=hDm30L",
     "tags": [
       "BetterBox",
       "Cisco",
