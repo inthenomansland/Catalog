@@ -372,6 +372,7 @@ function submitPoCRequest(event) {
     const jobName   = document.getElementById('poc-job-name').value.trim();
     const scope     = document.getElementById('poc-scope').value.trim();
     const outcomes  = document.getElementById('poc-outcomes').value.trim();
+    const kit       = document.getElementById('poc-kit').value.trim();
     const dateStart = document.getElementById('poc-date-start').value;
     const dateEnd   = document.getElementById('poc-date-end').value;
     const persons   = document.getElementById('poc-persons').value.trim();
@@ -394,6 +395,10 @@ function submitPoCRequest(event) {
         'EXPECTED OUTCOMES',
         '-----------------',
         outcomes || 'Not provided',
+        '',
+        'KIT / EQUIPMENT REQUIRED',
+        '------------------------',
+        kit      || 'Not provided',
         '',
         '---',
         'Submitted via proAV PoC Lab Catalogue',
