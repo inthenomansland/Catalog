@@ -2,7 +2,7 @@ FROM node:18-alpine
 WORKDIR /app
 
 COPY backend/package*.json ./
-RUN npm ci --only=production
+RUN npm install --only=production
 
 COPY backend/server.js ./
 COPY data.json ./data-default.json
