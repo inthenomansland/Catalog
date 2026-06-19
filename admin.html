@@ -244,6 +244,53 @@
         .entry-row-delete:hover { background: #fee2e2; }
         .entry-row-delete:disabled { opacity: 0.4; cursor: not-allowed; }
 
+        .entry-row-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .entry-row-edit {
+            flex-shrink: 0;
+            background: none;
+            border: 1px solid #93c5fd;
+            border-radius: 5px;
+            padding: 0.25rem 0.65rem;
+            font-size: 0.78rem;
+            color: #1d4ed8;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .entry-row-edit:hover { background: #eff6ff; }
+
+        .entry-edit-form {
+            background: #f8fafc;
+            border: 1px solid #e1e4e8;
+            border-left: 3px solid #6DC52D;
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .entry-edit-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.85rem;
+            margin-bottom: 1rem;
+        }
+
+        .entry-edit-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+        }
+
+        .entry-edit-status {
+            font-size: 0.82rem;
+            font-weight: 500;
+        }
+
         .hidden { display: none !important; }
 
         @media (max-width: 640px) {

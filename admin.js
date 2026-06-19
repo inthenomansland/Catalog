@@ -1,4 +1,5 @@
-let authToken = localStorage.getItem('poc-admin-token');
+let authToken      = localStorage.getItem('poc-admin-token');
+let currentEntries = [];
 
 // ── Visibility helpers ────────────────────────────────────────────────────
 function showLoginForm() {
@@ -71,14 +72,14 @@ async function submitEntry(event) {
     };
 
     if (!entry.title || !entry.manufacturer || !entry.testType || !entry.date || !entry.summary) {
-        status.className     = 'status error';
-        status.textContent   = 'Please fill in all required fields.';
+        status.className   = 'status error';
+        status.textContent = 'Please fill in all required fields.';
         return;
     }
 
-    btn.disabled           = true;
-    status.className       = 'status loading';
-    status.textContent     = 'Saving...';
+    btn.disabled       = true;
+    status.className   = 'status loading';
+    status.textContent = 'Saving...';
 
     try {
         const res = await fetch('/api/entries', {
@@ -121,24 +122,28 @@ async function loadEntries() {
     list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">Loading...</p>';
 
     try {
-        const res     = await fetch('/api/entries');
-        const entries = await res.json();
+        const res      = await fetch('/api/entries');
+        currentEntries = await res.json();
 
-        if (entries.length === 0) {
+        if (currentEntries.length === 0) {
             list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">No entries yet.</p>';
             return;
         }
 
         list.innerHTML = '';
-        entries.forEach((entry, idx) => {
+        currentEntries.forEach((entry, idx) => {
             const row = document.createElement('div');
             row.className = 'entry-row';
+            row.id = `entry-row-${idx}`;
             row.innerHTML = `
                 <div class="entry-row-info">
-                    <span class="entry-row-title">${entry.title}</span>
-                    <span class="entry-row-meta">${entry.manufacturer} &middot; ${entry.testType} &middot; ${entry.date}</span>
+                    <span class="entry-row-title">${escapeHtml(entry.title)}</span>
+                    <span class="entry-row-meta">${escapeHtml(entry.manufacturer)} &middot; ${entry.testType} &middot; ${entry.date}</span>
                 </div>
-                <button class="entry-row-delete" onclick="deleteEntry(${idx}, this)">Delete</button>
+                <div class="entry-row-actions">
+                    <button class="entry-row-edit" onclick="openEditForm(${idx})">Edit</button>
+                    <button class="entry-row-delete" onclick="deleteEntry(${idx}, this)">Delete</button>
+                </div>
             `;
             list.appendChild(row);
         });
@@ -147,6 +152,144 @@ async function loadEntries() {
     }
 }
 
+// ── Edit entry ────────────────────────────────────────────────────────────
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function openEditForm(idx) {
+    // Close any other open edit forms
+    document.querySelectorAll('.entry-edit-form').forEach(f => f.remove());
+    document.querySelectorAll('.entry-row-edit').forEach(b => {
+        b.textContent = 'Edit';
+    });
+
+    const entry  = currentEntries[idx];
+    const row    = document.getElementById(`entry-row-${idx}`);
+    const editBtn = row.querySelector('.entry-row-edit');
+    editBtn.textContent = 'Close';
+    editBtn.onclick = () => closeEditForm(idx);
+
+    const form = document.createElement('div');
+    form.className = 'entry-edit-form';
+    form.id = `edit-form-${idx}`;
+    form.innerHTML = `
+        <div class="entry-edit-grid">
+            <div class="form-group full">
+                <label>Title</label>
+                <input type="text" id="edit-title-${idx}" value="${escapeHtml(entry.title)}">
+            </div>
+            <div class="form-group">
+                <label>Manufacturer</label>
+                <input type="text" id="edit-manufacturer-${idx}" value="${escapeHtml(entry.manufacturer)}">
+            </div>
+            <div class="form-group">
+                <label>Product Name</label>
+                <input type="text" id="edit-productName-${idx}" value="${escapeHtml(entry.productName)}">
+            </div>
+            <div class="form-group">
+                <label>Product Category</label>
+                <input type="text" id="edit-productCategory-${idx}" value="${escapeHtml(entry.productCategory)}">
+            </div>
+            <div class="form-group">
+                <label>Test Type</label>
+                <select id="edit-testType-${idx}">
+                    <option value="Kit"     ${entry.testType === 'Kit'     ? 'selected' : ''}>Kit</option>
+                    <option value="Program" ${entry.testType === 'Program' ? 'selected' : ''}>Program</option>
+                    <option value="Concept" ${entry.testType === 'Concept' ? 'selected' : ''}>Concept</option>
+                </select>
+            </div>
+            <div class="form-group full">
+                <label>Date</label>
+                <input type="date" id="edit-date-${idx}" value="${entry.date || ''}">
+            </div>
+            <div class="form-group full">
+                <label>Summary</label>
+                <textarea id="edit-summary-${idx}">${escapeHtml(entry.summary)}</textarea>
+            </div>
+            <div class="form-group full">
+                <label>Front Page Document (SharePoint link)</label>
+                <input type="url" id="edit-frontPageDoc-${idx}" value="${entry.frontPageDoc || ''}">
+            </div>
+            <div class="form-group full">
+                <label>Full Report (SharePoint link)</label>
+                <input type="url" id="edit-fullReport-${idx}" value="${entry.fullReport || ''}">
+            </div>
+            <div class="form-group full">
+                <label>Tags (comma-separated)</label>
+                <input type="text" id="edit-tags-${idx}" value="${escapeHtml((entry.tags || []).join(', '))}">
+            </div>
+        </div>
+        <div class="entry-edit-actions">
+            <button class="btn-submit" onclick="saveEntry(${idx})" style="padding:0.5rem 1.25rem;font-size:0.85rem;">Save Changes</button>
+            <button class="btn-logout" onclick="closeEditForm(${idx})">Cancel</button>
+            <span class="entry-edit-status" id="edit-status-${idx}"></span>
+        </div>
+    `;
+
+    row.after(form);
+}
+
+function closeEditForm(idx) {
+    const form = document.getElementById(`edit-form-${idx}`);
+    if (form) form.remove();
+    const row = document.getElementById(`entry-row-${idx}`);
+    if (row) {
+        const editBtn = row.querySelector('.entry-row-edit');
+        if (editBtn) {
+            editBtn.textContent = 'Edit';
+            editBtn.onclick = () => openEditForm(idx);
+        }
+    }
+}
+
+async function saveEntry(idx) {
+    const statusEl = document.getElementById(`edit-status-${idx}`);
+    statusEl.textContent  = 'Saving...';
+    statusEl.style.color  = '#5b21b6';
+
+    const tagsRaw = document.getElementById(`edit-tags-${idx}`).value.trim();
+    const updated = {
+        title:           document.getElementById(`edit-title-${idx}`).value.trim(),
+        manufacturer:    document.getElementById(`edit-manufacturer-${idx}`).value.trim(),
+        productName:     document.getElementById(`edit-productName-${idx}`).value.trim(),
+        productCategory: document.getElementById(`edit-productCategory-${idx}`).value.trim(),
+        testType:        document.getElementById(`edit-testType-${idx}`).value,
+        date:            document.getElementById(`edit-date-${idx}`).value,
+        summary:         document.getElementById(`edit-summary-${idx}`).value.trim(),
+        frontPageDoc:    document.getElementById(`edit-frontPageDoc-${idx}`).value.trim() || null,
+        fullReport:      document.getElementById(`edit-fullReport-${idx}`).value.trim() || null,
+        tags:            tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : []
+    };
+
+    try {
+        const res = await fetch(`/api/entries/${idx}`, {
+            method:  'PUT',
+            headers: {
+                'Content-Type':  'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify(updated)
+        });
+
+        if (res.status === 401) { logout(); return; }
+
+        if (res.ok) {
+            statusEl.textContent = 'Saved!';
+            statusEl.style.color = '#065f46';
+            setTimeout(() => { closeEditForm(idx); loadEntries(); }, 600);
+        } else {
+            statusEl.textContent = 'Failed to save.';
+            statusEl.style.color = '#991b1b';
+        }
+    } catch {
+        statusEl.textContent  = 'Network error.';
+        statusEl.style.color  = '#991b1b';
+    }
+}
+
+// ── Delete entry ──────────────────────────────────────────────────────────
 async function deleteEntry(idx, btn) {
     if (!confirm('Delete this entry? This cannot be undone.')) return;
     btn.disabled = true;
