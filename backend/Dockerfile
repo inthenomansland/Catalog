@@ -7,6 +7,9 @@ RUN npm install --only=production
 COPY backend/server.js ./
 COPY data.json ./data-default.json
 
+# Copy frontend static files so the backend can serve them
+COPY index.html style.css app.js admin.html admin.js logo-header.svg ./public/
+
 RUN mkdir -p /app/data
 
 CMD ["node", "server.js"]

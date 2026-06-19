@@ -6,6 +6,9 @@ const jwt     = require('jsonwebtoken');
 const app = express();
 app.use(express.json());
 
+// Serve frontend static files
+app.use(express.static(path.join(__dirname, 'public')));
+
 const DATA_DIR     = '/app/data';
 const DATA_FILE    = path.join(DATA_DIR, 'data.json');
 const DEFAULT_DATA = path.join(__dirname, 'data-default.json');

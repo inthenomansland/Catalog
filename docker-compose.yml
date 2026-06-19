@@ -1,19 +1,11 @@
 services:
 
-  nginx:
-    build:
-      context: .
-      dockerfile: nginx/Dockerfile
-    ports:
-      - "8080:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    ports:
+      - "8080:3000"
     environment:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
