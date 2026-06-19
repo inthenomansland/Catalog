@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PoC Lab — Add Entry</title>
+    <title>PoC Lab — Admin</title>
     <link rel="stylesheet" href="style.css">
     <style>
         .admin-wrap {
@@ -37,69 +37,41 @@
             margin-bottom: 2rem;
         }
 
-        /* Settings panel */
-        .settings-panel {
-            background: #f8fafc;
+        /* Login */
+        .login-card {
+            background: white;
             border: 1px solid #e1e4e8;
-            border-radius: 10px;
-            margin-bottom: 2rem;
-            overflow: hidden;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 380px;
         }
 
-        .settings-toggle {
-            width: 100%;
-            background: none;
-            border: none;
-            padding: 0.9rem 1.25rem;
+        .login-card h2 { margin-bottom: 0.25rem; }
+
+        .login-error {
+            color: #991b1b;
+            font-size: 0.82rem;
+            margin-top: 0.5rem;
+            min-height: 1.2em;
+        }
+
+        .logout-bar {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: #374151;
-            text-align: left;
+            justify-content: flex-end;
+            margin-bottom: 1.5rem;
         }
 
-        .settings-toggle:hover { background: #f0f2f5; }
-
-        .settings-toggle .arrow {
-            font-size: 0.75rem;
-            transition: transform 0.2s;
-        }
-
-        .settings-toggle.open .arrow { transform: rotate(180deg); }
-
-        .settings-body {
-            display: none;
-            padding: 0 1.25rem 1.25rem;
-            border-top: 1px solid #e1e4e8;
-        }
-
-        .settings-body.open { display: block; }
-
-        .settings-note {
-            font-size: 0.8rem;
+        .btn-logout {
+            background: none;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 0.35rem 0.9rem;
+            font-size: 0.82rem;
             color: #6b7280;
-            margin: 0.85rem 0 1rem;
-            line-height: 1.5;
+            cursor: pointer;
         }
 
-        .settings-note a {
-            color: #6DC52D;
-        }
-
-        .settings-saved {
-            display: inline-block;
-            font-size: 0.75rem;
-            color: #065f46;
-            background: #d1fae5;
-            padding: 0.15rem 0.6rem;
-            border-radius: 4px;
-            margin-left: 0.5rem;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
+        .btn-logout:hover { background: #f3f4f6; color: #374151; }
 
         /* Form */
         .form-grid {
@@ -183,7 +155,7 @@
         .btn-submit:hover { background: #5aad1f; }
         .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Status messages */
+        /* Status */
         .status {
             display: none;
             padding: 0.75rem 1rem;
@@ -213,6 +185,67 @@
             border: 1px solid #c4b5fd;
         }
 
+        /* Existing entries */
+        .entries-section {
+            margin-top: 3rem;
+            border-top: 1px solid #e1e4e8;
+            padding-top: 2rem;
+        }
+
+        .entries-section h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f1117;
+            margin-bottom: 1rem;
+        }
+
+        .entry-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.65rem 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .entry-row-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+            min-width: 0;
+        }
+
+        .entry-row-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #0f1117;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .entry-row-meta {
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+
+        .entry-row-delete {
+            flex-shrink: 0;
+            background: none;
+            border: 1px solid #fca5a5;
+            border-radius: 5px;
+            padding: 0.25rem 0.65rem;
+            font-size: 0.78rem;
+            color: #ef4444;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .entry-row-delete:hover { background: #fee2e2; }
+        .entry-row-delete:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .hidden { display: none !important; }
+
         @media (max-width: 640px) {
             .admin-wrap { padding: 1rem 1.25rem 3rem; }
             .form-grid { grid-template-columns: 1fr; }
@@ -233,111 +266,111 @@
 
     <div class="admin-wrap">
 
-        <a href="index.html" class="back-link">&#8592; Back to catalog</a>
+        <a href="index.html" class="back-link">&#8592; Back to catalogue</a>
 
-        <h2>Add New Entry</h2>
-        <p class="subtitle">Fill in the details below. The catalog will update automatically.</p>
-
-        <!-- GitHub Settings -->
-        <div class="settings-panel">
-            <button class="settings-toggle" id="settings-toggle">
-                <span>GitHub Settings <span class="settings-saved" id="settings-saved">Saved</span></span>
-                <span class="arrow">&#9660;</span>
-            </button>
-            <div class="settings-body" id="settings-body">
-                <p class="settings-note">
-                    These are saved in your browser only. You only need to enter them once.<br>
-                    Your token needs <strong>Contents: Read &amp; Write</strong> access.
-                    <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">Create a token here &rarr;</a>
-                </p>
-                <div class="form-grid">
+        <!-- Login -->
+        <div id="login-section">
+            <div class="login-card">
+                <h2>Admin Login</h2>
+                <p class="subtitle">Enter your admin password to manage catalogue entries.</p>
+                <form id="login-form">
                     <div class="form-group">
-                        <label for="gh-owner">GitHub Username</label>
-                        <input type="text" id="gh-owner" placeholder="your-username">
+                        <label for="admin-password">Password</label>
+                        <input type="password" id="admin-password" placeholder="Admin password" autocomplete="current-password">
                     </div>
-                    <div class="form-group">
-                        <label for="gh-repo">Repository Name</label>
-                        <input type="text" id="gh-repo" placeholder="poc-lab-catalog">
+                    <div class="form-actions" style="margin-top:1rem;">
+                        <button type="submit" class="btn-submit">Log In</button>
                     </div>
-                    <div class="form-group full">
-                        <label for="gh-token">Personal Access Token</label>
-                        <input type="password" id="gh-token" placeholder="github_pat_...">
-                    </div>
-                </div>
-                <div class="form-actions" style="margin-top: 1rem;">
-                    <button class="btn-submit" id="save-settings" style="padding: 0.5rem 1.25rem; font-size: 0.85rem;">Save Settings</button>
-                </div>
+                    <p class="login-error" id="login-error"></p>
+                </form>
             </div>
         </div>
 
-        <!-- Entry Form -->
-        <form id="entry-form" novalidate>
-            <div class="form-grid">
+        <!-- Admin form (shown after login) -->
+        <div id="admin-form-section" class="hidden">
 
-                <div class="form-group full">
-                    <label for="title">Title <span class="required">*</span></label>
-                    <input type="text" id="title" placeholder="e.g. Sony FX6 Cinema Camera Evaluation" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="manufacturer">Manufacturer <span class="required">*</span></label>
-                    <input type="text" id="manufacturer" placeholder="e.g. Sony" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="productName">Product Name <span class="required">*</span></label>
-                    <input type="text" id="productName" placeholder="e.g. FX6">
-                </div>
-
-                <div class="form-group">
-                    <label for="productCategory">Product Category <span class="required">*</span></label>
-                    <input type="text" id="productCategory" placeholder="e.g. Video, Audio, Software" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="testType">Test Type <span class="required">*</span></label>
-                    <select id="testType" required>
-                        <option value="">Select type...</option>
-                        <option value="Kit">Kit</option>
-                        <option value="Program">Program</option>
-                        <option value="Concept">Concept</option>
-                    </select>
-                </div>
-
-                <div class="form-group full">
-                    <label for="date">Date <span class="required">*</span></label>
-                    <input type="date" id="date" required>
-                </div>
-
-                <div class="form-group full">
-                    <label for="summary">Summary <span class="required">*</span></label>
-                    <textarea id="summary" placeholder="Brief description of what was tested and key findings..." required></textarea>
-                </div>
-
-                <div class="form-group full">
-                    <label for="frontPageDoc">Front Page Document (SharePoint link)</label>
-                    <input type="url" id="frontPageDoc" placeholder="https://yourcompany.sharepoint.com/...">
-                </div>
-
-                <div class="form-group full">
-                    <label for="fullReport">Full Report (SharePoint link) <span class="required">*</span></label>
-                    <input type="url" id="fullReport" placeholder="https://yourcompany.sharepoint.com/..." required>
-                </div>
-
-                <div class="form-group full">
-                    <label for="tags">Tags</label>
-                    <input type="text" id="tags" placeholder="camera, SDI, live production">
-                    <span class="hint">Comma-separated keywords</span>
-                </div>
-
+            <div class="logout-bar">
+                <button class="btn-logout" onclick="logout()">Log out</button>
             </div>
 
-            <div class="form-actions">
-                <button type="submit" class="btn-submit" id="submit-btn">Add to Catalog</button>
+            <h2>Add New Entry</h2>
+            <p class="subtitle">Fill in the details below. The catalogue will update automatically.</p>
+
+            <form id="entry-form" novalidate>
+                <div class="form-grid">
+
+                    <div class="form-group full">
+                        <label for="title">Title <span class="required">*</span></label>
+                        <input type="text" id="title" placeholder="e.g. Sony FX6 Cinema Camera Evaluation" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="manufacturer">Manufacturer <span class="required">*</span></label>
+                        <input type="text" id="manufacturer" placeholder="e.g. Sony" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="productName">Product Name <span class="required">*</span></label>
+                        <input type="text" id="productName" placeholder="e.g. FX6">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="productCategory">Product Category</label>
+                        <input type="text" id="productCategory" placeholder="e.g. Video, Audio, Network">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="testType">Test Type <span class="required">*</span></label>
+                        <select id="testType" required>
+                            <option value="">Select type...</option>
+                            <option value="Kit">Kit</option>
+                            <option value="Program">Program</option>
+                            <option value="Concept">Concept</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group full">
+                        <label for="date">Date <span class="required">*</span></label>
+                        <input type="date" id="date" required>
+                    </div>
+
+                    <div class="form-group full">
+                        <label for="summary">Summary <span class="required">*</span></label>
+                        <textarea id="summary" placeholder="Brief description of what was tested and key findings..." required></textarea>
+                    </div>
+
+                    <div class="form-group full">
+                        <label for="frontPageDoc">Front Page Document (SharePoint link)</label>
+                        <input type="url" id="frontPageDoc" placeholder="https://yourcompany.sharepoint.com/...">
+                    </div>
+
+                    <div class="form-group full">
+                        <label for="fullReport">Full Report (SharePoint link)</label>
+                        <input type="url" id="fullReport" placeholder="https://yourcompany.sharepoint.com/...">
+                    </div>
+
+                    <div class="form-group full">
+                        <label for="tags">Tags</label>
+                        <input type="text" id="tags" placeholder="camera, SDI, live production">
+                        <span class="hint">Comma-separated keywords</span>
+                    </div>
+
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-submit" id="submit-btn">Add to Catalogue</button>
+                </div>
+
+                <div class="status" id="status"></div>
+            </form>
+
+            <!-- Existing entries -->
+            <div class="entries-section">
+                <h3>Existing Entries</h3>
+                <div id="entries-list"></div>
             </div>
 
-            <div class="status" id="status"></div>
-        </form>
+        </div>
 
     </div>
 

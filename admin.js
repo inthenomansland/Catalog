@@ -1,124 +1,64 @@
-const STORAGE_KEY = 'poc-lab-gh-settings';
+let authToken = localStorage.getItem('poc-admin-token');
 
-// ── Settings panel ──────────────────────────────────────────────────────────
-
-const settingsToggle = document.getElementById('settings-toggle');
-const settingsBody   = document.getElementById('settings-body');
-const settingsSaved  = document.getElementById('settings-saved');
-
-settingsToggle.addEventListener('click', () => {
-    const isOpen = settingsBody.classList.toggle('open');
-    settingsToggle.classList.toggle('open', isOpen);
-});
-
-function loadSettings() {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    if (saved.owner) document.getElementById('gh-owner').value = saved.owner;
-    if (saved.repo)  document.getElementById('gh-repo').value  = saved.repo;
-    if (saved.token) document.getElementById('gh-token').value = saved.token;
-
-    const hasSettings = saved.owner && saved.repo && saved.token;
-    if (!hasSettings) {
-        settingsBody.classList.add('open');
-        settingsToggle.classList.add('open');
-    } else {
-        settingsSaved.style.opacity = '1';
-    }
+// ── Visibility helpers ────────────────────────────────────────────────────
+function showLoginForm() {
+    document.getElementById('login-section').classList.remove('hidden');
+    document.getElementById('admin-form-section').classList.add('hidden');
+    document.getElementById('admin-password').focus();
 }
 
-document.getElementById('save-settings').addEventListener('click', () => {
-    const owner = document.getElementById('gh-owner').value.trim();
-    const repo  = document.getElementById('gh-repo').value.trim();
-    const token = document.getElementById('gh-token').value.trim();
-
-    if (!owner || !repo || !token) {
-        showStatus('Please fill in all three GitHub settings fields.', 'error');
-        return;
-    }
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ owner, repo, token }));
-    settingsSaved.style.opacity = '1';
-    settingsBody.classList.remove('open');
-    settingsToggle.classList.remove('open');
-    showStatus('GitHub settings saved.', 'success');
-});
-
-// ── Status helper ───────────────────────────────────────────────────────────
-
-function showStatus(message, type) {
-    const el = document.getElementById('status');
-    el.textContent = message;
-    el.className = `status ${type}`;
+function showAdminForm() {
+    document.getElementById('login-section').classList.add('hidden');
+    document.getElementById('admin-form-section').classList.remove('hidden');
+    loadEntries();
 }
 
-function clearStatus() {
-    const el = document.getElementById('status');
-    el.className = 'status';
-    el.textContent = '';
-}
+// ── Auth ──────────────────────────────────────────────────────────────────
+async function login(event) {
+    event.preventDefault();
+    const password = document.getElementById('admin-password').value;
+    const errorEl  = document.getElementById('login-error');
+    errorEl.textContent = '';
 
-// ── GitHub API ───────────────────────────────────────────────────────────────
+    try {
+        const res = await fetch('/api/auth', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ password })
+        });
 
-async function fetchCurrentData(owner, repo, token) {
-    const res = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/contents/data.json`,
-        { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' } }
-    );
-
-    if (res.status === 401) throw new Error('Invalid token. Check your GitHub Personal Access Token in Settings.');
-    if (res.status === 404) throw new Error('Repository or data.json not found. Check your username and repo name in Settings.');
-    if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
-
-    const file = await res.json();
-    const content = atob(file.content.replace(/\n/g, ''));
-    return { data: JSON.parse(content), sha: file.sha };
-}
-
-async function pushUpdatedData(owner, repo, token, data, sha, title) {
-    const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
-
-    const res = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/contents/data.json`,
-        {
-            method: 'PUT',
-            headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: 'application/vnd.github+json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                message: `Add entry: ${title}`,
-                content,
-                sha
-            })
+        if (res.ok) {
+            const { token } = await res.json();
+            authToken = token;
+            localStorage.setItem('poc-admin-token', token);
+            document.getElementById('admin-password').value = '';
+            showAdminForm();
+        } else {
+            errorEl.textContent = 'Incorrect password.';
+            document.getElementById('admin-password').value = '';
+            document.getElementById('admin-password').focus();
         }
-    );
-
-    if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || `Push failed: ${res.status}`);
+    } catch {
+        errorEl.textContent = 'Could not connect to server.';
     }
 }
 
-// ── Form submission ──────────────────────────────────────────────────────────
+function logout() {
+    authToken = null;
+    localStorage.removeItem('poc-admin-token');
+    showLoginForm();
+}
 
-document.getElementById('entry-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    clearStatus();
+// ── Add entry ─────────────────────────────────────────────────────────────
+async function submitEntry(event) {
+    event.preventDefault();
 
-    const settings = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    if (!settings.owner || !settings.repo || !settings.token) {
-        showStatus('GitHub settings are not configured. Open the Settings panel above and save your details first.', 'error');
-        settingsBody.classList.add('open');
-        settingsToggle.classList.add('open');
-        return;
-    }
+    const btn    = document.getElementById('submit-btn');
+    const status = document.getElementById('status');
 
-    const title = document.getElementById('title').value.trim();
-    if (!title) { showStatus('Title is required.', 'error'); return; }
-
-    const newEntry = {
-        title,
+    const tagsRaw = document.getElementById('tags').value.trim();
+    const entry = {
+        title:           document.getElementById('title').value.trim(),
         manufacturer:    document.getElementById('manufacturer').value.trim(),
         productName:     document.getElementById('productName').value.trim(),
         productCategory: document.getElementById('productCategory').value.trim(),
@@ -127,35 +67,118 @@ document.getElementById('entry-form').addEventListener('submit', async (e) => {
         summary:         document.getElementById('summary').value.trim(),
         frontPageDoc:    document.getElementById('frontPageDoc').value.trim() || null,
         fullReport:      document.getElementById('fullReport').value.trim() || null,
-        tags:            document.getElementById('tags').value
-                            .split(',')
-                            .map(t => t.trim())
-                            .filter(Boolean)
+        tags:            tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : []
     };
 
-    const submitBtn = document.getElementById('submit-btn');
-    submitBtn.disabled = true;
-    showStatus('Submitting to GitHub…', 'loading');
+    if (!entry.title || !entry.manufacturer || !entry.testType || !entry.date || !entry.summary) {
+        status.className     = 'status error';
+        status.textContent   = 'Please fill in all required fields.';
+        return;
+    }
+
+    btn.disabled           = true;
+    status.className       = 'status loading';
+    status.textContent     = 'Saving...';
 
     try {
-        const { data, sha } = await fetchCurrentData(settings.owner, settings.repo, settings.token);
-        data.unshift(newEntry);
-        await pushUpdatedData(settings.owner, settings.repo, settings.token, data, sha, title);
+        const res = await fetch('/api/entries', {
+            method:  'POST',
+            headers: {
+                'Content-Type':  'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify(entry)
+        });
 
-        showStatus(`"${title}" has been added. The catalog will update in about 60 seconds.`, 'success');
-        document.getElementById('entry-form').reset();
+        if (res.status === 401) {
+            logout();
+            status.className   = 'status error';
+            status.textContent = 'Session expired — please log in again.';
+            return;
+        }
 
-    } catch (err) {
-        showStatus(err.message, 'error');
+        if (res.ok) {
+            status.className   = 'status success';
+            status.textContent = `"${entry.title}" added to catalogue.`;
+            document.getElementById('entry-form').reset();
+            document.getElementById('date').value = new Date().toISOString().split('T')[0];
+            loadEntries();
+        } else {
+            status.className   = 'status error';
+            status.textContent = 'Failed to save — please try again.';
+        }
+    } catch {
+        status.className   = 'status error';
+        status.textContent = 'Network error. Is the backend running?';
     } finally {
-        submitBtn.disabled = false;
+        btn.disabled = false;
+    }
+}
+
+// ── Existing entries list ─────────────────────────────────────────────────
+async function loadEntries() {
+    const list = document.getElementById('entries-list');
+    list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">Loading...</p>';
+
+    try {
+        const res     = await fetch('/api/entries');
+        const entries = await res.json();
+
+        if (entries.length === 0) {
+            list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">No entries yet.</p>';
+            return;
+        }
+
+        list.innerHTML = '';
+        entries.forEach((entry, idx) => {
+            const row = document.createElement('div');
+            row.className = 'entry-row';
+            row.innerHTML = `
+                <div class="entry-row-info">
+                    <span class="entry-row-title">${entry.title}</span>
+                    <span class="entry-row-meta">${entry.manufacturer} &middot; ${entry.testType} &middot; ${entry.date}</span>
+                </div>
+                <button class="entry-row-delete" onclick="deleteEntry(${idx}, this)">Delete</button>
+            `;
+            list.appendChild(row);
+        });
+    } catch {
+        list.innerHTML = '<p style="color:#991b1b;font-size:0.85rem;">Failed to load entries.</p>';
+    }
+}
+
+async function deleteEntry(idx, btn) {
+    if (!confirm('Delete this entry? This cannot be undone.')) return;
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/entries/${idx}`, {
+            method:  'DELETE',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+
+        if (res.status === 401) { logout(); return; }
+        if (res.ok) {
+            loadEntries();
+        } else {
+            alert('Failed to delete. Please try again.');
+            btn.disabled = false;
+        }
+    } catch {
+        alert('Network error.');
+        btn.disabled = false;
+    }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('login-form').addEventListener('submit', login);
+    document.getElementById('entry-form').addEventListener('submit', submitEntry);
+
+    if (authToken) {
+        showAdminForm();
+    } else {
+        showLoginForm();
     }
 });
-
-// ── Init ─────────────────────────────────────────────────────────────────────
-
-loadSettings();
-
-// Default date to today
-const today = new Date().toISOString().split('T')[0];
-document.getElementById('date').value = today;

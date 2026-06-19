@@ -3,7 +3,7 @@ const TYPE_ORDER = ['Kit', 'Program', 'Concept'];
 
 // ── Data loading ──────────────────────────────────────────────────────────
 async function loadData() {
-    const res = await fetch('data.json');
+    const res = await fetch('/api/entries');
     allEntries = await res.json();
     allEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
     populateFilters();
