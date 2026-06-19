@@ -6,7 +6,7 @@ services:
       dockerfile: backend/Dockerfile
     pull_policy: build
     ports:
-      - "3000"
+      - "32769:3000"
     environment:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
