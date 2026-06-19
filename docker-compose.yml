@@ -4,6 +4,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    pull_policy: build
     ports:
       - "3000"
     environment:
