@@ -221,8 +221,8 @@ function render(entries, filtersActive) {
 
     if (!filtersActive) {
         const recent = entries.filter(e => isRecent(e.date));
-        if (recent.length > 0) root.appendChild(buildWhatsNewSection(recent));
         if (allGotchas.length > 0) root.appendChild(buildGotchasSection(allGotchas));
+        if (recent.length > 0) root.appendChild(buildWhatsNewSection(recent));
     }
 
     root.appendChild(buildGroupedSection(entries));
