@@ -144,7 +144,7 @@ async function notifyNewKnownIssue(entry) {
 
     try {
         await transporter.sendMail({
-            from:    `"PoC Lab Notifications" <${user}>`,
+            from:    `"PoC Lab Notifications" <${process.env.SMTP_FROM || user}>`,
             to:      'poc.lab@proav.com',
             subject: 'New Known Issue Submitted — PoC Lab',
             text,
