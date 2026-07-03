@@ -18,7 +18,7 @@
                 <button class="header-btn header-btn--outline" onclick="openSubmitModal()">Submit Report</button>
                 <button class="header-btn header-btn--outline" onclick="openBenchModal()">Request Bench Test</button>
                 <button class="header-btn header-btn--filled" onclick="openPoCModal()">Request a PoC</button>
-                <button class="header-btn header-btn--outline" onclick="openGotchaModal()">Report a Gotcha</button>
+                <button class="header-btn header-btn--outline" onclick="openGotchaModal()">Report a Known Issue</button>
             </div>
         </div>
     </header>
@@ -246,12 +246,12 @@
         </div>
     </div>
 
-    <!-- Report a Gotcha Modal -->
+    <!-- Report a Known Issue Modal -->
     <div id="gotcha-modal-overlay" class="modal-overlay hidden" onclick="closeGotchaModal(event)">
         <div class="modal">
             <div class="modal-header">
                 <div>
-                    <h2>Report a Gotcha</h2>
+                    <h2>Report a Known Issue</h2>
                     <p>Found an issue or a workaround? Submit it for review — if approved it'll appear on the dashboard.</p>
                 </div>
                 <button class="modal-close" onclick="closeGotchaModal()">&times;</button>
@@ -259,7 +259,11 @@
             <form id="gotcha-report-form" onsubmit="submitGotchaReport(event)">
                 <div class="modal-body">
                     <div class="modal-field">
-                        <label for="gotcha-issue-input">Issue</label>
+                        <label for="gotcha-submitter-input">Your Full Name <span style="color:#ef4444">*</span></label>
+                        <input type="text" id="gotcha-submitter-input" placeholder="e.g. John Smith">
+                    </div>
+                    <div class="modal-field">
+                        <label for="gotcha-issue-input">Issue <span style="color:#ef4444">*</span></label>
                         <input type="text" id="gotcha-issue-input" placeholder="e.g. Cisco mic loses VLAN config on reboot">
                     </div>
                     <div class="modal-field">

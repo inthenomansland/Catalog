@@ -343,7 +343,7 @@ async function submitGotcha(event) {
 
         if (res.ok) {
             status.className   = 'status success';
-            status.textContent = 'Gotcha added.';
+            status.textContent = 'Known issue added.';
             document.getElementById('gotcha-form').reset();
             loadGotchas();
         } else {
@@ -372,7 +372,7 @@ async function loadGotchas() {
         const gotchas = await res.json();
 
         if (gotchas.length === 0) {
-            list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">No gotchas yet.</p>';
+            list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">No known issues yet.</p>';
             return;
         }
 
@@ -395,6 +395,7 @@ async function loadGotchas() {
                     <div class="entry-row-info">
                         <span class="entry-row-title">${escapeHtml(g.issue)}</span>
                         <span class="entry-row-meta">${escapeHtml(g.workaround)}</span>
+                        ${g.submittedBy ? `<span class="entry-row-meta" style="color:#92400e;">Submitted by: ${escapeHtml(g.submittedBy)}</span>` : ''}
                     </div>
                     <div class="entry-row-actions">
                         <button class="entry-row-approve" onclick="approveGotcha(${g._idx}, this)">Approve</button>
@@ -427,7 +428,7 @@ async function loadGotchas() {
             });
         }
     } catch {
-        list.innerHTML = '<p style="color:#991b1b;font-size:0.85rem;">Failed to load gotchas.</p>';
+        list.innerHTML = '<p style="color:#991b1b;font-size:0.85rem;">Failed to load known issues.</p>';
     }
 }
 
@@ -450,7 +451,7 @@ async function approveGotcha(idx, btn) {
 }
 
 async function deleteGotcha(idx, btn) {
-    if (!confirm('Delete this gotcha?')) return;
+    if (!confirm('Delete this known issue?')) return;
     btn.disabled = true;
 
     try {

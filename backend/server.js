@@ -95,9 +95,10 @@ app.delete('/api/entries/:index', requireAuth, (req, res) => {
     res.status(204).send();
 });
 
-// ── Gotchas (public read — approved only) ────────────────────────────────
+// ── Gotchas (public read — approved only, submitter name stripped) ────────
 app.get('/api/gotchas', (req, res) => {
-    res.json(readGotchas().filter(g => g.status !== 'pending'));
+    const approved = readGotchas().filter(g => g.status !== 'pending');
+    res.json(approved.map(({ submittedBy, ...rest }) => rest));
 });
 
 // ── Gotchas (admin read — all including pending) ──────────────────────────
@@ -107,10 +108,10 @@ app.get('/api/gotchas/all', requireAuth, (req, res) => {
 
 // ── Gotchas (public suggest — lands as pending) ───────────────────────────
 app.post('/api/gotchas/suggest', (req, res) => {
-    const { issue, workaround } = req.body || {};
-    if (!issue || !workaround) return res.status(400).json({ error: 'issue and workaround are required' });
+    const { submittedBy, issue, workaround } = req.body || {};
+    if (!submittedBy || !issue || !workaround) return res.status(400).json({ error: 'submittedBy, issue and workaround are required' });
     const data  = readGotchas();
-    const entry = { issue, workaround, date: new Date().toISOString().split('T')[0], status: 'pending' };
+    const entry = { submittedBy, issue, workaround, date: new Date().toISOString().split('T')[0], status: 'pending' };
     data.push(entry);
     writeGotchas(data);
     res.status(201).json(entry);

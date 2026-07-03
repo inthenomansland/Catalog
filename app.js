@@ -129,7 +129,7 @@ function buildGotchasSection(gotchas) {
         <div class="gotchas-toggle" onclick="toggleGotchas()">
             <div class="gotchas-toggle-left">
                 <span class="gotchas-icon">&#9888;</span>
-                <span class="gotchas-title">Gotchas &amp; Known Issues</span>
+                <span class="gotchas-title">Known Issues</span>
                 <span class="gotchas-count">${gotchas.length} item${gotchas.length !== 1 ? 's' : ''}</span>
             </div>
             <span class="gotchas-chevron" id="gotchas-chevron">${isOpen ? '▲' : '▼'}</span>
@@ -468,29 +468,31 @@ function closeGotchaModal(event) {
 
 async function submitGotchaReport(event) {
     event.preventDefault();
-    const issue      = document.getElementById('gotcha-issue-input').value.trim();
-    const workaround = document.getElementById('gotcha-workaround-input').value.trim();
-    const msg        = document.getElementById('gotcha-report-msg');
+    const submittedBy = document.getElementById('gotcha-submitter-input').value.trim();
+    const issue       = document.getElementById('gotcha-issue-input').value.trim();
+    const workaround  = document.getElementById('gotcha-workaround-input').value.trim();
+    const msg         = document.getElementById('gotcha-report-msg');
 
-    if (!issue || !workaround) {
-        msg.style.color  = '#991b1b';
-        msg.textContent  = 'Please fill in both fields.';
+    if (!submittedBy || !issue || !workaround) {
+        msg.style.color = '#991b1b';
+        msg.textContent = 'Please fill in all fields.';
         return;
     }
 
-    msg.style.color  = '#5b21b6';
-    msg.textContent  = 'Submitting...';
+    msg.style.color = '#5b21b6';
+    msg.textContent = 'Submitting...';
 
     try {
         const res = await fetch('/api/gotchas/suggest', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ issue, workaround })
+            body:    JSON.stringify({ submittedBy, issue, workaround })
         });
 
         if (res.ok) {
             msg.style.color = '#065f46';
-            msg.textContent = 'Thanks! Your gotcha has been submitted for review.';
+            msg.textContent = 'Thanks! Your issue has been submitted for review.';
+            document.getElementById('gotcha-submitter-input').value  = '';
             document.getElementById('gotcha-issue-input').value      = '';
             document.getElementById('gotcha-workaround-input').value = '';
             setTimeout(() => {
