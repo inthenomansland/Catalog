@@ -1,7 +1,8 @@
-const express = require('express');
-const fs      = require('fs');
-const path    = require('path');
-const jwt     = require('jsonwebtoken');
+const express    = require('express');
+const fs         = require('fs');
+const path       = require('path');
+const jwt        = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 
 const app = express();
 app.use(express.json());
@@ -119,11 +120,18 @@ app.post('/api/gotchas/suggest', async (req, res) => {
 });
 
 async function notifyNewKnownIssue(entry) {
-    const apiKey  = process.env.SENDGRID_API_KEY;
-    const from    = process.env.SENDGRID_FROM;
-    if (!apiKey || !from) return;
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+    if (!user || !pass) return;
 
-    const body = [
+    const transporter = nodemailer.createTransport({
+        host:   process.env.SMTP_HOST || 'smtp.gmail.com',
+        port:   587,
+        secure: false,
+        auth:   { user, pass },
+    });
+
+    const text = [
         'A new Known Issue has been submitted and is awaiting your approval.',
         '',
         `Submitted by: ${entry.submittedBy}`,
@@ -135,23 +143,12 @@ async function notifyNewKnownIssue(entry) {
     ].join('\n');
 
     try {
-        const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-            method:  'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type':  'application/json',
-            },
-            body: JSON.stringify({
-                personalizations: [{ to: [{ email: 'poc.lab@proav.com' }] }],
-                from:    { email: from, name: 'PoC Lab' },
-                subject: 'New Known Issue Submitted — PoC Lab',
-                content: [{ type: 'text/plain', value: body }],
-            }),
+        await transporter.sendMail({
+            from:    `"PoC Lab Notifications" <${user}>`,
+            to:      'poc.lab@proav.com',
+            subject: 'New Known Issue Submitted — PoC Lab',
+            text,
         });
-        if (!response.ok) {
-            const detail = await response.text();
-            console.error('SendGrid error:', response.status, detail);
-        }
     } catch (err) {
         console.error('Failed to send notification email:', err.message);
     }
