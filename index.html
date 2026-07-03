@@ -19,6 +19,7 @@
                 <button class="header-btn header-btn--outline" onclick="openBenchModal()">Request Bench Test</button>
                 <button class="header-btn header-btn--filled" onclick="openPoCModal()">Request a PoC</button>
                 <button class="header-btn header-btn--outline" onclick="openGotchaModal()">Report a Known Issue</button>
+                <button class="header-btn header-btn--outline" onclick="openSubscribeModal()">Get Notified</button>
             </div>
         </div>
     </header>
@@ -241,6 +242,41 @@
                 <div class="modal-footer">
                     <button type="button" class="modal-btn-cancel" onclick="closePoCModal()">Cancel</button>
                     <button type="submit" class="modal-btn-submit">Send Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Get Notified Modal -->
+    <div id="subscribe-modal-overlay" class="modal-overlay hidden" onclick="closeSubscribeModal(event)">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <h2>Get Notified</h2>
+                    <p>Choose how often you'd like to hear about new reports from the PoC Lab.</p>
+                </div>
+                <button class="modal-close" onclick="closeSubscribeModal()">&times;</button>
+            </div>
+            <form id="subscribe-form" onsubmit="submitSubscription(event)">
+                <div class="modal-body">
+                    <div id="subscribe-msg" style="display:none;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;margin-bottom:1rem;"></div>
+                    <div class="modal-field">
+                        <label for="subscribe-email">Email Address</label>
+                        <input type="email" id="subscribe-email" placeholder="your@email.com">
+                    </div>
+                    <div class="modal-field">
+                        <label for="subscribe-frequency">Notification Frequency</label>
+                        <select id="subscribe-frequency">
+                            <option value="instant">Every new report — as soon as it's published</option>
+                            <option value="weekly">Weekly digest — summary every Monday morning</option>
+                            <option value="monthly">Monthly digest — summary on the 1st of each month</option>
+                        </select>
+                    </div>
+                    <p style="font-size:0.78rem;color:#9ca3af;margin-top:0.75rem;">You can unsubscribe at any time via the link in any notification email.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="modal-btn-cancel" onclick="closeSubscribeModal()">Cancel</button>
+                    <button type="submit" class="modal-btn-submit">Subscribe</button>
                 </div>
             </form>
         </div>

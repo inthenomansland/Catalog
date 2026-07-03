@@ -12,6 +12,7 @@ function showAdminForm() {
     document.getElementById('login-section').classList.add('hidden');
     document.getElementById('admin-form-section').classList.remove('hidden');
     loadEntries();
+    loadSubscribers();
     loadGotchas();
 }
 
@@ -308,6 +309,64 @@ async function deleteEntry(idx, btn) {
             alert('Failed to delete. Please try again.');
             btn.disabled = false;
         }
+    } catch {
+        alert('Network error.');
+        btn.disabled = false;
+    }
+}
+
+// ── Subscribers ───────────────────────────────────────────────────────────
+async function loadSubscribers() {
+    const list = document.getElementById('subscribers-list');
+    list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">Loading...</p>';
+
+    try {
+        const res  = await fetch('/api/admin/subscribers', {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+
+        if (res.status === 401) { logout(); return; }
+
+        const subs = await res.json();
+
+        if (subs.length === 0) {
+            list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">No subscribers yet.</p>';
+            return;
+        }
+
+        const labels = { instant: 'Every new report', weekly: 'Weekly digest', monthly: 'Monthly digest' };
+
+        list.innerHTML = '';
+        subs.forEach((sub, idx) => {
+            const row = document.createElement('div');
+            row.className = 'entry-row';
+            row.innerHTML = `
+                <div class="entry-row-info">
+                    <span class="entry-row-title">${escapeHtml(sub.email)}</span>
+                    <span class="entry-row-meta">${labels[sub.frequency] || sub.frequency} &middot; Since ${sub.subscribedDate || '—'}</span>
+                </div>
+                <button class="entry-row-delete" onclick="deleteSubscriber(${idx}, this)">Remove</button>
+            `;
+            list.appendChild(row);
+        });
+    } catch {
+        list.innerHTML = '<p style="color:#991b1b;font-size:0.85rem;">Failed to load subscribers.</p>';
+    }
+}
+
+async function deleteSubscriber(idx, btn) {
+    if (!confirm('Remove this subscriber?')) return;
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/admin/subscribers/${idx}`, {
+            method:  'DELETE',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+
+        if (res.status === 401) { logout(); return; }
+        if (res.ok) loadSubscribers();
+        else { alert('Failed to remove subscriber.'); btn.disabled = false; }
     } catch {
         alert('Network error.');
         btn.disabled = false;

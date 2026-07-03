@@ -449,6 +449,92 @@ function submitPoCRequest(event) {
     document.getElementById('poc-form').reset();
 }
 
+// ── Unsubscribe handler ───────────────────────────────────────────────────
+(async function checkUnsubscribe() {
+    const token = new URLSearchParams(window.location.search).get('unsubscribe');
+    if (!token) return;
+    const banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;top:1rem;left:50%;transform:translateX(-50%);padding:0.75rem 1.5rem;border-radius:8px;font-size:0.9rem;font-weight:500;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);';
+    try {
+        const res = await fetch(`/api/unsubscribe?token=${encodeURIComponent(token)}`);
+        if (res.ok) {
+            banner.style.background = '#d1fae5';
+            banner.style.color      = '#065f46';
+            banner.textContent      = 'You have been unsubscribed successfully.';
+        } else {
+            banner.style.background = '#fee2e2';
+            banner.style.color      = '#991b1b';
+            banner.textContent      = 'Unsubscribe link not found — you may already be unsubscribed.';
+        }
+    } catch {
+        banner.style.background = '#fee2e2';
+        banner.style.color      = '#991b1b';
+        banner.textContent      = 'Network error — please try again.';
+    }
+    document.body.appendChild(banner);
+    setTimeout(() => banner.remove(), 5000);
+    window.history.replaceState({}, '', window.location.pathname);
+})();
+
+// ── Get Notified Modal ────────────────────────────────────────────────────
+function openSubscribeModal() {
+    document.getElementById('subscribe-modal-overlay').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    document.getElementById('subscribe-email').focus();
+}
+
+function closeSubscribeModal(event) {
+    if (event && event.target !== document.getElementById('subscribe-modal-overlay')) return;
+    document.getElementById('subscribe-modal-overlay').classList.add('hidden');
+    document.body.style.overflow = '';
+    document.getElementById('subscribe-form').reset();
+    const msg = document.getElementById('subscribe-msg');
+    msg.style.display = 'none';
+    msg.textContent   = '';
+}
+
+async function submitSubscription(event) {
+    event.preventDefault();
+    const email     = document.getElementById('subscribe-email').value.trim();
+    const frequency = document.getElementById('subscribe-frequency').value;
+    const msg       = document.getElementById('subscribe-msg');
+
+    if (!email) {
+        msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
+        msg.textContent   = 'Please enter your email address.';
+        return;
+    }
+
+    msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;';
+    msg.textContent   = 'Saving...';
+
+    try {
+        const res = await fetch('/api/subscribe', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ email, frequency }),
+        });
+
+        if (res.ok) {
+            const labels = { instant: 'every new report', weekly: 'weekly digest', monthly: 'monthly digest' };
+            msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;';
+            msg.textContent   = `Subscribed! You'll receive notifications for ${labels[frequency]}.`;
+            setTimeout(() => {
+                document.getElementById('subscribe-modal-overlay').classList.add('hidden');
+                document.body.style.overflow = '';
+                document.getElementById('subscribe-form').reset();
+                msg.style.display = 'none';
+            }, 2500);
+        } else {
+            msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
+            msg.textContent   = 'Failed to subscribe — please try again.';
+        }
+    } catch {
+        msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
+        msg.textContent   = 'Network error. Please try again.';
+    }
+}
+
 // ── Report a Gotcha Modal ─────────────────────────────────────────────────
 function openGotchaModal() {
     document.getElementById('gotcha-modal-overlay').classList.remove('hidden');
@@ -517,6 +603,7 @@ document.addEventListener('keydown', (e) => {
         document.getElementById('bench-modal-overlay').classList.add('hidden');
         document.getElementById('poc-modal-overlay').classList.add('hidden');
         document.getElementById('gotcha-modal-overlay').classList.add('hidden');
+        document.getElementById('subscribe-modal-overlay').classList.add('hidden');
         document.body.style.overflow = '';
     }
 });
