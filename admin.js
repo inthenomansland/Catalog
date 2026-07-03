@@ -480,6 +480,7 @@ async function loadGotchas() {
                     <div class="entry-row-info">
                         <span class="entry-row-title">${escapeHtml(g.issue)}</span>
                         <span class="entry-row-meta">${escapeHtml(g.workaround)}</span>
+                        ${g.submittedBy ? `<span class="entry-row-meta" style="color:#6b7280;">Submitted by: ${escapeHtml(g.submittedBy)}</span>` : ''}
                     </div>
                     <button class="entry-row-delete" onclick="deleteGotcha(${g._idx}, this)">Delete</button>
                 `;
