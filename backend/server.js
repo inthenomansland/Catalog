@@ -151,7 +151,7 @@ async function notifyNewKnownIssue(entry) {
         });
         console.log('Notification email sent successfully');
     } catch (err) {
-        console.error('Failed to send notification email:', err.message);
+        console.error(`Failed to send notification email (login: ${user}):`, err.message);
     }
 }
 
