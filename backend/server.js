@@ -4,6 +4,7 @@ const path       = require('path');
 const jwt        = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const crypto     = require('crypto');
+const rateLimit  = require('express-rate-limit');
 
 const app = express();
 app.use(express.json());
@@ -18,6 +19,15 @@ app.use((req, res, next) => {
         "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self';"
     );
     next();
+});
+
+// Rate limiter for public submission endpoints
+const submitLimiter = rateLimit({
+    windowMs:        15 * 60 * 1000,
+    max:             10,
+    standardHeaders: true,
+    legacyHeaders:   false,
+    message:         { error: 'Too many submissions. Please try again in a few minutes.' },
 });
 
 // Serve frontend static files
@@ -291,7 +301,8 @@ app.get('/api/gotchas/all', requireAuth, (req, res) => {
 });
 
 // ── Gotchas (public suggest — lands as pending) ───────────────────────────
-app.post('/api/gotchas/suggest', async (req, res) => {
+app.post('/api/gotchas/suggest', submitLimiter, async (req, res) => {
+    if (req.body._hp) return res.status(200).json({ message: 'ok' });
     const { submittedBy, issue, workaround } = req.body || {};
     if (!submittedBy || !issue || !workaround) return res.status(400).json({ error: 'submittedBy, issue and workaround are required' });
     const data  = readGotchas();
@@ -333,7 +344,8 @@ app.delete('/api/gotchas/:index', requireAuth, (req, res) => {
 });
 
 // ── Subscriptions (public) ────────────────────────────────────────────────
-app.post('/api/subscribe', (req, res) => {
+app.post('/api/subscribe', submitLimiter, (req, res) => {
+    if (req.body._hp) return res.status(200).json({ message: 'ok' });
     const { email, frequency } = req.body || {};
     if (!email || !frequency) return res.status(400).json({ error: 'email and frequency required' });
     if (!['instant', 'weekly', 'monthly'].includes(frequency)) return res.status(400).json({ error: 'invalid frequency' });
@@ -379,7 +391,8 @@ app.delete('/api/admin/subscribers/:index', requireAuth, (req, res) => {
 });
 
 // ── Requests (public submit) ──────────────────────────────────────────────
-app.post('/api/requests', async (req, res) => {
+app.post('/api/requests', submitLimiter, async (req, res) => {
+    if (req.body._hp) return res.status(200).json({ message: 'ok' });
     const { type, submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons } = req.body || {};
     if (!type || !['bench', 'poc'].includes(type)) return res.status(400).json({ error: 'type must be bench or poc' });
     if (!submitterName) return res.status(400).json({ error: 'submitterName is required' });

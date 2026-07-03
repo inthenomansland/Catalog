@@ -373,7 +373,7 @@ async function submitBenchRequest(event) {
         const res = await fetch('/api/requests', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ type: 'bench', submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons }),
+            body:    JSON.stringify({ type: 'bench', submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons, _hp: document.getElementById('hp-bench').value }),
         });
 
         if (res.ok) {
@@ -439,7 +439,7 @@ async function submitPoCRequest(event) {
         const res = await fetch('/api/requests', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ type: 'poc', submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons }),
+            body:    JSON.stringify({ type: 'poc', submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons, _hp: document.getElementById('hp-poc').value }),
         });
 
         if (res.ok) {
@@ -524,7 +524,7 @@ async function submitSubscription(event) {
         const res = await fetch('/api/subscribe', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ email, frequency }),
+            body:    JSON.stringify({ email, frequency, _hp: document.getElementById('hp-subscribe').value }),
         });
 
         if (res.ok) {
@@ -584,7 +584,7 @@ async function submitGotchaReport(event) {
         const res = await fetch('/api/gotchas/suggest', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ submittedBy, issue, workaround })
+            body:    JSON.stringify({ submittedBy, issue, workaround, _hp: document.getElementById('hp-gotcha').value })
         });
 
         if (res.ok) {

@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PoC Lab — Research Catalogue</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .hp-field { position:absolute; left:-9999px; top:-9999px; width:0; height:0; opacity:0; pointer-events:none; }
+    </style>
 </head>
 <body>
 
@@ -137,6 +140,7 @@
             </div>
             <form id="bench-form" onsubmit="submitBenchRequest(event)">
                 <div class="modal-body">
+                    <input class="hp-field" type="text" id="hp-bench" autocomplete="off" tabindex="-1" aria-hidden="true">
 
                     <div class="modal-field">
                         <label for="bench-submitter-name">Your Full Name <span style="color:#ef4444">*</span></label>
@@ -210,6 +214,7 @@
             </div>
             <form id="poc-form" onsubmit="submitPoCRequest(event)">
                 <div class="modal-body">
+                    <input class="hp-field" type="text" id="hp-poc" autocomplete="off" tabindex="-1" aria-hidden="true">
 
                     <div class="modal-field">
                         <label for="poc-submitter-name">Your Full Name <span style="color:#ef4444">*</span></label>
@@ -283,6 +288,7 @@
             </div>
             <form id="subscribe-form" onsubmit="submitSubscription(event)">
                 <div class="modal-body">
+                    <input class="hp-field" type="text" id="hp-subscribe" autocomplete="off" tabindex="-1" aria-hidden="true">
                     <div id="subscribe-msg" style="display:none;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;margin-bottom:1rem;"></div>
                     <div class="modal-field">
                         <label for="subscribe-email">Email Address</label>
@@ -318,6 +324,7 @@
             </div>
             <form id="gotcha-report-form" onsubmit="submitGotchaReport(event)">
                 <div class="modal-body">
+                    <input class="hp-field" type="text" id="hp-gotcha" autocomplete="off" tabindex="-1" aria-hidden="true">
                     <div class="modal-field">
                         <label for="gotcha-submitter-input">Your Full Name <span style="color:#ef4444">*</span></label>
                         <input type="text" id="gotcha-submitter-input" placeholder="e.g. John Smith">
