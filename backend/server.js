@@ -107,7 +107,7 @@ app.get('/api/gotchas/all', requireAuth, (req, res) => {
 });
 
 // ── Gotchas (public suggest — lands as pending) ───────────────────────────
-app.post('/api/gotchas/suggest', (req, res) => {
+app.post('/api/gotchas/suggest', async (req, res) => {
     const { submittedBy, issue, workaround } = req.body || {};
     if (!submittedBy || !issue || !workaround) return res.status(400).json({ error: 'submittedBy, issue and workaround are required' });
     const data  = readGotchas();
@@ -115,7 +115,47 @@ app.post('/api/gotchas/suggest', (req, res) => {
     data.push(entry);
     writeGotchas(data);
     res.status(201).json(entry);
+    notifyNewKnownIssue(entry);
 });
+
+async function notifyNewKnownIssue(entry) {
+    const apiKey  = process.env.SENDGRID_API_KEY;
+    const from    = process.env.SENDGRID_FROM;
+    if (!apiKey || !from) return;
+
+    const body = [
+        'A new Known Issue has been submitted and is awaiting your approval.',
+        '',
+        `Submitted by: ${entry.submittedBy}`,
+        `Issue:        ${entry.issue}`,
+        `Workaround:   ${entry.workaround}`,
+        '',
+        'Log in to the admin panel to approve or reject:',
+        'https://poc-lab.av.proav.cloud/admin.html',
+    ].join('\n');
+
+    try {
+        const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+            method:  'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type':  'application/json',
+            },
+            body: JSON.stringify({
+                personalizations: [{ to: [{ email: 'poc.lab@proav.com' }] }],
+                from:    { email: from, name: 'PoC Lab' },
+                subject: 'New Known Issue Submitted — PoC Lab',
+                content: [{ type: 'text/plain', value: body }],
+            }),
+        });
+        if (!response.ok) {
+            const detail = await response.text();
+            console.error('SendGrid error:', response.status, detail);
+        }
+    } catch (err) {
+        console.error('Failed to send notification email:', err.message);
+    }
+}
 
 // ── Gotchas (admin write — goes live immediately) ─────────────────────────
 app.post('/api/gotchas', requireAuth, (req, res) => {
