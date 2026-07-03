@@ -5,12 +5,15 @@ let currentEntries = [];
 function showLoginForm() {
     document.getElementById('login-section').classList.remove('hidden');
     document.getElementById('admin-form-section').classList.add('hidden');
+    document.getElementById('admin-sidebar').classList.remove('visible');
     document.getElementById('admin-password').focus();
 }
 
 function showAdminForm() {
     document.getElementById('login-section').classList.add('hidden');
     document.getElementById('admin-form-section').classList.remove('hidden');
+    document.getElementById('admin-sidebar').classList.add('visible');
+    restoreSectionStates();
     loadEntries();
     loadSubscribers();
     loadGotchas();
@@ -131,6 +134,9 @@ async function loadEntries() {
             list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">No entries yet.</p>';
             return;
         }
+
+        updateBadge('entries-count-badge', currentEntries.length, true);
+        updateBadge('sb-entries', currentEntries.length, true);
 
         list.innerHTML = '';
         currentEntries.forEach((entry, idx) => {
@@ -336,6 +342,9 @@ async function loadSubscribers() {
 
         const labels = { instant: 'Every new report', weekly: 'Weekly digest', monthly: 'Monthly digest' };
 
+        updateBadge('subscribers-count-badge', subs.length, true);
+        updateBadge('sb-subscribers', subs.length, true);
+
         list.innerHTML = '';
         subs.forEach((sub, idx) => {
             const row = document.createElement('div');
@@ -440,6 +449,9 @@ async function loadGotchas() {
         const pending  = gotchas.map((g, i) => ({ ...g, _idx: i })).filter(g => g.status === 'pending');
         const approved = gotchas.map((g, i) => ({ ...g, _idx: i })).filter(g => g.status !== 'pending');
 
+        updateBadge('issues-pending-badge', pending.length, pending.length > 0);
+        updateBadge('sb-issues-pending', pending.length, pending.length > 0);
+
         if (pending.length > 0) {
             const heading = document.createElement('p');
             heading.style.cssText = 'font-size:0.78rem;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;margin-top:0.25rem;';
@@ -527,6 +539,47 @@ async function deleteGotcha(idx, btn) {
         alert('Network error.');
         btn.disabled = false;
     }
+}
+
+// ── Section collapse & sidebar ────────────────────────────────────────────
+function toggleSection(id) {
+    const card   = document.getElementById(id);
+    const body   = card.querySelector('.section-body');
+    const toggle = card.querySelector('.section-toggle');
+    const nowCollapsed = body.classList.toggle('collapsed');
+    toggle.classList.toggle('collapsed', nowCollapsed);
+
+    const state = JSON.parse(localStorage.getItem('poc-admin-sections') || '{}');
+    state[id]   = nowCollapsed ? 'collapsed' : 'expanded';
+    localStorage.setItem('poc-admin-sections', JSON.stringify(state));
+}
+
+function restoreSectionStates() {
+    const state = JSON.parse(localStorage.getItem('poc-admin-sections') || '{}');
+    Object.entries(state).forEach(([id, s]) => {
+        const card = document.getElementById(id);
+        if (!card || s !== 'collapsed') return;
+        card.querySelector('.section-body')?.classList.add('collapsed');
+        card.querySelector('.section-toggle')?.classList.add('collapsed');
+    });
+}
+
+function scrollToSection(id) {
+    const card = document.getElementById(id);
+    if (!card) return;
+    if (card.querySelector('.section-body').classList.contains('collapsed')) toggleSection(id);
+    setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+
+    document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+    const navEl = document.getElementById('nav-' + id.replace('section-', ''));
+    if (navEl) navEl.classList.add('active');
+}
+
+function updateBadge(id, count, show) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (show && count > 0) { el.textContent = count; el.style.display = ''; }
+    else { el.style.display = 'none'; }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────

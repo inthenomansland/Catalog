@@ -6,10 +6,81 @@
     <title>PoC Lab — Admin</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .admin-wrap {
-            max-width: 720px;
+        /* ── Page layout ───────────────────────────────── */
+        .admin-layout {
+            display: flex;
+            max-width: 1040px;
             margin: 0 auto;
-            padding: 2rem 2.5rem 4rem;
+            align-items: flex-start;
+            padding: 0 1.5rem;
+        }
+
+        /* ── Sidebar ───────────────────────────────────── */
+        #admin-sidebar {
+            width: 192px;
+            flex-shrink: 0;
+            position: sticky;
+            top: 1.5rem;
+            padding: 2rem 0;
+            display: none;
+        }
+
+        #admin-sidebar.visible { display: block; }
+
+        .sidebar-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #9ca3af;
+            padding: 0 1rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.45rem 1rem;
+            font-size: 0.855rem;
+            color: #374151;
+            cursor: pointer;
+            border-left: 2px solid transparent;
+            border-radius: 0 6px 6px 0;
+            transition: background 0.1s, color 0.1s, border-color 0.1s;
+            margin-bottom: 1px;
+        }
+
+        .sidebar-item:hover { background: #f3f4f6; color: #0f1117; }
+
+        .sidebar-item.active {
+            background: #f0fde4;
+            border-left-color: #6DC52D;
+            color: #2d6b0a;
+            font-weight: 600;
+        }
+
+        .sb-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 9px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .sb-badge--gray   { background: #e5e7eb; color: #6b7280; }
+        .sb-badge--orange { background: #fed7aa; color: #92400e; }
+
+        /* ── Main area ─────────────────────────────────── */
+        .admin-main {
+            flex: 1;
+            min-width: 0;
+            padding: 2rem 0 4rem 2rem;
         }
 
         .back-link {
@@ -24,41 +95,10 @@
 
         .back-link:hover { color: #1a1a2e; }
 
-        .admin-wrap h2 {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: #0f1117;
-            margin-bottom: 0.3rem;
-        }
-
-        .admin-wrap .subtitle {
-            color: #6b7280;
-            font-size: 0.875rem;
-            margin-bottom: 2rem;
-        }
-
-        /* Login */
-        .login-card {
-            background: white;
-            border: 1px solid #e1e4e8;
-            border-radius: 12px;
-            padding: 2rem;
-            max-width: 380px;
-        }
-
-        .login-card h2 { margin-bottom: 0.25rem; }
-
-        .login-error {
-            color: #991b1b;
-            font-size: 0.82rem;
-            margin-top: 0.5rem;
-            min-height: 1.2em;
-        }
-
         .logout-bar {
             display: flex;
             justify-content: flex-end;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
         }
 
         .btn-logout {
@@ -73,31 +113,116 @@
 
         .btn-logout:hover { background: #f3f4f6; color: #374151; }
 
-        /* Form */
+        /* ── Section cards ─────────────────────────────── */
+        .section-card {
+            background: white;
+            border: 1px solid #e1e4e8;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.9rem 1.25rem;
+            cursor: pointer;
+            user-select: none;
+            gap: 0.75rem;
+        }
+
+        .section-header:hover { background: #f9fafb; }
+
+        .section-header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .section-header h3 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #0f1117;
+            margin: 0;
+        }
+
+        .section-header-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        .badge--gray   { background: #e5e7eb; color: #6b7280; }
+        .badge--green  { background: #d1fae5; color: #065f46; }
+        .badge--orange { background: #fed7aa; color: #92400e; }
+
+        .section-toggle {
+            background: none;
+            border: none;
+            color: #9ca3af;
+            font-size: 1.15rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+            flex-shrink: 0;
+            transform: rotate(90deg);
+            transition: transform 0.15s;
+        }
+
+        .section-toggle.collapsed { transform: rotate(0deg); }
+
+        .section-body { padding: 0 1.25rem 1.25rem; }
+        .section-body.collapsed { display: none; }
+        .section-divider { height: 1px; background: #f3f4f6; margin-bottom: 1.25rem; }
+
+        /* ── Login card ────────────────────────────────── */
+        .login-card {
+            background: white;
+            border: 1px solid #e1e4e8;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 380px;
+        }
+
+        .login-card h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #0f1117;
+            margin-bottom: 0.25rem;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .login-error {
+            color: #991b1b;
+            font-size: 0.82rem;
+            margin-top: 0.5rem;
+            min-height: 1.2em;
+        }
+
+        /* ── Forms ─────────────────────────────────────── */
         .form-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1.1rem;
         }
 
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.35rem;
-        }
-
+        .form-group { display: flex; flex-direction: column; gap: 0.35rem; }
         .form-group.full { grid-column: 1 / -1; }
 
-        label {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #374151;
-        }
-
-        label .required {
-            color: #ef4444;
-            margin-left: 2px;
-        }
+        label { font-size: 0.8rem; font-weight: 600; color: #374151; }
+        label .required { color: #ef4444; margin-left: 2px; }
 
         input[type="text"],
         input[type="date"],
@@ -115,11 +240,7 @@
             width: 100%;
         }
 
-        textarea {
-            resize: vertical;
-            min-height: 90px;
-            line-height: 1.5;
-        }
+        textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
 
         input:focus, textarea:focus, select:focus {
             outline: none;
@@ -127,18 +248,9 @@
             box-shadow: 0 0 0 3px rgba(109,197,45,0.15);
         }
 
-        .hint {
-            font-size: 0.75rem;
-            color: #9ca3af;
-        }
+        .hint { font-size: 0.75rem; color: #9ca3af; }
 
-        /* Submit */
-        .form-actions {
-            margin-top: 1.75rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
+        .form-actions { margin-top: 1.5rem; display: flex; align-items: center; gap: 1rem; }
 
         .btn-submit {
             padding: 0.65rem 1.75rem;
@@ -155,50 +267,12 @@
         .btn-submit:hover { background: #5aad1f; }
         .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Status */
-        .status {
-            display: none;
-            padding: 0.75rem 1rem;
-            border-radius: 7px;
-            font-size: 0.875rem;
-            margin-top: 1.25rem;
-        }
+        .status { display: none; padding: 0.75rem 1rem; border-radius: 7px; font-size: 0.875rem; margin-top: 1.25rem; }
+        .status.success { display: block; background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+        .status.error   { display: block; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .status.loading { display: block; background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
 
-        .status.success {
-            display: block;
-            background: #d1fae5;
-            color: #065f46;
-            border: 1px solid #6ee7b7;
-        }
-
-        .status.error {
-            display: block;
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #fca5a5;
-        }
-
-        .status.loading {
-            display: block;
-            background: #ede9fe;
-            color: #5b21b6;
-            border: 1px solid #c4b5fd;
-        }
-
-        /* Existing entries */
-        .entries-section {
-            margin-top: 3rem;
-            border-top: 1px solid #e1e4e8;
-            padding-top: 2rem;
-        }
-
-        .entries-section h3 {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #0f1117;
-            margin-bottom: 1rem;
-        }
-
+        /* ── Entry rows ────────────────────────────────── */
         .entry-row {
             display: flex;
             align-items: center;
@@ -208,12 +282,9 @@
             border-bottom: 1px solid #f3f4f6;
         }
 
-        .entry-row-info {
-            display: flex;
-            flex-direction: column;
-            gap: 0.15rem;
-            min-width: 0;
-        }
+        .entry-row:last-child { border-bottom: none; }
+
+        .entry-row-info { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
 
         .entry-row-title {
             font-size: 0.875rem;
@@ -224,31 +295,9 @@
             text-overflow: ellipsis;
         }
 
-        .entry-row-meta {
-            font-size: 0.75rem;
-            color: #9ca3af;
-        }
+        .entry-row-meta { font-size: 0.75rem; color: #9ca3af; }
 
-        .entry-row-delete {
-            flex-shrink: 0;
-            background: none;
-            border: 1px solid #fca5a5;
-            border-radius: 5px;
-            padding: 0.25rem 0.65rem;
-            font-size: 0.78rem;
-            color: #ef4444;
-            cursor: pointer;
-            transition: background 0.1s;
-        }
-
-        .entry-row-delete:hover { background: #fee2e2; }
-        .entry-row-delete:disabled { opacity: 0.4; cursor: not-allowed; }
-
-        .entry-row-actions {
-            display: flex;
-            gap: 0.5rem;
-            flex-shrink: 0;
-        }
+        .entry-row-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
 
         .entry-row-edit {
             flex-shrink: 0;
@@ -279,6 +328,22 @@
         .entry-row-approve:hover { background: #fff7ed; }
         .entry-row-approve:disabled { opacity: 0.4; cursor: not-allowed; }
 
+        .entry-row-delete {
+            flex-shrink: 0;
+            background: none;
+            border: 1px solid #fca5a5;
+            border-radius: 5px;
+            padding: 0.25rem 0.65rem;
+            font-size: 0.78rem;
+            color: #ef4444;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .entry-row-delete:hover { background: #fee2e2; }
+        .entry-row-delete:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ── Edit form ─────────────────────────────────── */
         .entry-edit-form {
             background: #f8fafc;
             border: 1px solid #e1e4e8;
@@ -295,23 +360,18 @@
             margin-bottom: 1rem;
         }
 
-        .entry-edit-actions {
-            display: flex;
-            align-items: center;
-            gap: 0.65rem;
-        }
-
-        .entry-edit-status {
-            font-size: 0.82rem;
-            font-weight: 500;
-        }
+        .entry-edit-actions { display: flex; align-items: center; gap: 0.65rem; }
+        .entry-edit-status { font-size: 0.82rem; font-weight: 500; }
 
         .hidden { display: none !important; }
 
-        @media (max-width: 640px) {
-            .admin-wrap { padding: 1rem 1.25rem 3rem; }
+        @media (max-width: 768px) {
+            .admin-layout { padding: 0 1rem; }
+            #admin-sidebar { display: none !important; }
+            .admin-main { padding: 1.25rem 0 3rem; }
             .form-grid { grid-template-columns: 1fr; }
             .form-group.full { grid-column: 1; }
+            .entry-edit-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -326,146 +386,191 @@
         </div>
     </header>
 
-    <div class="admin-wrap">
+    <div class="admin-layout">
 
-        <a href="index.html" class="back-link">&#8592; Back to catalogue</a>
+        <!-- Sidebar nav -->
+        <nav id="admin-sidebar">
+            <p class="sidebar-label">Sections</p>
+            <a class="sidebar-item" id="nav-add" onclick="scrollToSection('section-add')">
+                Add New Entry
+            </a>
+            <a class="sidebar-item" id="nav-entries" onclick="scrollToSection('section-entries')">
+                <span>Entries</span>
+                <span class="sb-badge sb-badge--gray" id="sb-entries" style="display:none"></span>
+            </a>
+            <a class="sidebar-item" id="nav-subscribers" onclick="scrollToSection('section-subscribers')">
+                <span>Subscribers</span>
+                <span class="sb-badge sb-badge--gray" id="sb-subscribers" style="display:none"></span>
+            </a>
+            <a class="sidebar-item" id="nav-issues" onclick="scrollToSection('section-issues')">
+                <span>Known Issues</span>
+                <span class="sb-badge sb-badge--orange" id="sb-issues-pending" style="display:none"></span>
+            </a>
+        </nav>
 
-        <!-- Login -->
-        <div id="login-section">
-            <div class="login-card">
-                <h2>Admin Login</h2>
-                <p class="subtitle">Enter your admin password to manage catalogue entries.</p>
-                <form id="login-form">
-                    <div class="form-group">
-                        <label for="admin-password">Password</label>
-                        <input type="password" id="admin-password" placeholder="Admin password" autocomplete="current-password">
-                    </div>
-                    <div class="form-actions" style="margin-top:1rem;">
-                        <button type="submit" class="btn-submit">Log In</button>
-                    </div>
-                    <p class="login-error" id="login-error"></p>
-                </form>
+        <!-- Main content -->
+        <div class="admin-main">
+
+            <a href="index.html" class="back-link">&#8592; Back to catalogue</a>
+
+            <!-- Login -->
+            <div id="login-section">
+                <div class="login-card">
+                    <h2>Admin Login</h2>
+                    <p class="subtitle">Enter your admin password to manage catalogue entries.</p>
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label for="admin-password">Password</label>
+                            <input type="password" id="admin-password" placeholder="Admin password" autocomplete="current-password">
+                        </div>
+                        <div class="form-actions" style="margin-top:1rem;">
+                            <button type="submit" class="btn-submit">Log In</button>
+                        </div>
+                        <p class="login-error" id="login-error"></p>
+                    </form>
+                </div>
             </div>
-        </div>
 
-        <!-- Admin form (shown after login) -->
-        <div id="admin-form-section" class="hidden">
+            <!-- Admin sections (shown after login) -->
+            <div id="admin-form-section" class="hidden">
 
-            <div class="logout-bar">
-                <button class="btn-logout" onclick="logout()">Log out</button>
-            </div>
-
-            <h2>Add New Entry</h2>
-            <p class="subtitle">Fill in the details below. The catalogue will update automatically.</p>
-
-            <form id="entry-form" novalidate>
-                <div class="form-grid">
-
-                    <div class="form-group full">
-                        <label for="title">Title <span class="required">*</span></label>
-                        <input type="text" id="title" placeholder="e.g. Sony FX6 Cinema Camera Evaluation" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="manufacturer">Manufacturer <span class="required">*</span></label>
-                        <input type="text" id="manufacturer" placeholder="e.g. Sony" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="productName">Product Name <span class="required">*</span></label>
-                        <input type="text" id="productName" placeholder="e.g. FX6">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="productCategory">Product Category</label>
-                        <input type="text" id="productCategory" placeholder="e.g. Video, Audio, Network">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="testType">Test Type <span class="required">*</span></label>
-                        <select id="testType" required>
-                            <option value="">Select type...</option>
-                            <option value="Kit">Kit</option>
-                            <option value="Program">Program</option>
-                            <option value="Concept">Concept</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group full">
-                        <label for="date">Date <span class="required">*</span></label>
-                        <input type="date" id="date" required>
-                    </div>
-
-                    <div class="form-group full">
-                        <label for="summary">Summary <span class="required">*</span></label>
-                        <textarea id="summary" placeholder="Brief description of what was tested and key findings..." required></textarea>
-                    </div>
-
-                    <div class="form-group full">
-                        <label for="frontPageDoc">Front Page Document (SharePoint link)</label>
-                        <input type="url" id="frontPageDoc" placeholder="https://yourcompany.sharepoint.com/...">
-                    </div>
-
-                    <div class="form-group full">
-                        <label for="fullReport">Full Report (SharePoint link)</label>
-                        <input type="url" id="fullReport" placeholder="https://yourcompany.sharepoint.com/...">
-                    </div>
-
-                    <div class="form-group full">
-                        <label for="tags">Tags</label>
-                        <input type="text" id="tags" placeholder="camera, SDI, live production">
-                        <span class="hint">Comma-separated keywords</span>
-                    </div>
-
+                <div class="logout-bar">
+                    <button class="btn-logout" onclick="logout()">Log out</button>
                 </div>
 
-                <div class="form-actions">
-                    <button type="submit" class="btn-submit" id="submit-btn">Add to Catalogue</button>
+                <!-- Add New Entry -->
+                <div class="section-card" id="section-add">
+                    <div class="section-header" onclick="toggleSection('section-add')">
+                        <div class="section-header-left">
+                            <h3>Add New Entry</h3>
+                        </div>
+                        <button class="section-toggle" aria-label="Toggle section">&#8250;</button>
+                    </div>
+                    <div class="section-body">
+                        <div class="section-divider"></div>
+                        <p class="subtitle">Fill in the details below. The catalogue will update automatically.</p>
+                        <form id="entry-form" novalidate>
+                            <div class="form-grid">
+                                <div class="form-group full">
+                                    <label for="title">Title <span class="required">*</span></label>
+                                    <input type="text" id="title" placeholder="e.g. Sony FX6 Cinema Camera Evaluation" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="manufacturer">Manufacturer <span class="required">*</span></label>
+                                    <input type="text" id="manufacturer" placeholder="e.g. Sony" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="productName">Product Name <span class="required">*</span></label>
+                                    <input type="text" id="productName" placeholder="e.g. FX6">
+                                </div>
+                                <div class="form-group">
+                                    <label for="productCategory">Product Category</label>
+                                    <input type="text" id="productCategory" placeholder="e.g. Video, Audio, Network">
+                                </div>
+                                <div class="form-group">
+                                    <label for="testType">Test Type <span class="required">*</span></label>
+                                    <select id="testType" required>
+                                        <option value="">Select type...</option>
+                                        <option value="Kit">Kit</option>
+                                        <option value="Program">Program</option>
+                                        <option value="Concept">Concept</option>
+                                    </select>
+                                </div>
+                                <div class="form-group full">
+                                    <label for="date">Date <span class="required">*</span></label>
+                                    <input type="date" id="date" required>
+                                </div>
+                                <div class="form-group full">
+                                    <label for="summary">Summary <span class="required">*</span></label>
+                                    <textarea id="summary" placeholder="Brief description of what was tested and key findings..." required></textarea>
+                                </div>
+                                <div class="form-group full">
+                                    <label for="frontPageDoc">Front Page Document (SharePoint link)</label>
+                                    <input type="url" id="frontPageDoc" placeholder="https://yourcompany.sharepoint.com/...">
+                                </div>
+                                <div class="form-group full">
+                                    <label for="fullReport">Full Report (SharePoint link)</label>
+                                    <input type="url" id="fullReport" placeholder="https://yourcompany.sharepoint.com/...">
+                                </div>
+                                <div class="form-group full">
+                                    <label for="tags">Tags</label>
+                                    <input type="text" id="tags" placeholder="camera, SDI, live production">
+                                    <span class="hint">Comma-separated keywords</span>
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn-submit" id="submit-btn">Add to Catalogue</button>
+                            </div>
+                            <div class="status" id="status"></div>
+                        </form>
+                    </div>
                 </div>
 
-                <div class="status" id="status"></div>
-            </form>
-
-            <!-- Existing entries -->
-            <div class="entries-section">
-                <h3>Existing Entries</h3>
-                <div id="entries-list"></div>
-            </div>
-
-            <!-- Subscribers -->
-            <div class="entries-section">
-                <h3>Notification Subscribers</h3>
-                <p class="subtitle" style="margin-bottom:1.25rem;">People who have signed up for report notifications via the catalogue.</p>
-                <div id="subscribers-list"></div>
-            </div>
-
-            <!-- Known Issues -->
-            <div class="entries-section">
-                <h3>Known Issues</h3>
-                <p class="subtitle" style="margin-bottom:1.25rem;">Short issues and workarounds shown as a collapsible strip on the dashboard.</p>
-
-                <form id="gotcha-form" novalidate>
-                    <div class="form-grid">
-                        <div class="form-group full">
-                            <label for="gotcha-issue">Issue <span class="required">*</span></label>
-                            <input type="text" id="gotcha-issue" placeholder="e.g. Cisco mic loses VLAN config on reboot">
+                <!-- Existing Entries -->
+                <div class="section-card" id="section-entries">
+                    <div class="section-header" onclick="toggleSection('section-entries')">
+                        <div class="section-header-left">
+                            <h3>Existing Entries</h3>
+                            <span class="section-header-badge badge--gray" id="entries-count-badge" style="display:none"></span>
                         </div>
-                        <div class="form-group full">
-                            <label for="gotcha-workaround">Workaround <span class="required">*</span></label>
-                            <textarea id="gotcha-workaround" placeholder="e.g. Manually re-apply the VLAN config via the web UI after each reboot." style="min-height:60px;"></textarea>
+                        <button class="section-toggle" aria-label="Toggle section">&#8250;</button>
+                    </div>
+                    <div class="section-body">
+                        <div class="section-divider"></div>
+                        <div id="entries-list"></div>
+                    </div>
+                </div>
+
+                <!-- Notification Subscribers -->
+                <div class="section-card" id="section-subscribers">
+                    <div class="section-header" onclick="toggleSection('section-subscribers')">
+                        <div class="section-header-left">
+                            <h3>Notification Subscribers</h3>
+                            <span class="section-header-badge badge--green" id="subscribers-count-badge" style="display:none"></span>
                         </div>
+                        <button class="section-toggle" aria-label="Toggle section">&#8250;</button>
                     </div>
-                    <div class="form-actions" style="margin-top:1rem;">
-                        <button type="submit" class="btn-submit" id="gotcha-submit-btn" style="padding:0.5rem 1.25rem;font-size:0.85rem;">Add Known Issue</button>
+                    <div class="section-body">
+                        <div class="section-divider"></div>
+                        <p class="subtitle" style="margin-bottom:1rem;">People who have signed up for report notifications via the catalogue.</p>
+                        <div id="subscribers-list"></div>
                     </div>
-                    <div class="status" id="gotcha-status"></div>
-                </form>
+                </div>
 
-                <div id="gotchas-list" style="margin-top:1.25rem;"></div>
+                <!-- Known Issues -->
+                <div class="section-card" id="section-issues">
+                    <div class="section-header" onclick="toggleSection('section-issues')">
+                        <div class="section-header-left">
+                            <h3>Known Issues</h3>
+                            <span class="section-header-badge badge--orange" id="issues-pending-badge" style="display:none"></span>
+                        </div>
+                        <button class="section-toggle" aria-label="Toggle section">&#8250;</button>
+                    </div>
+                    <div class="section-body">
+                        <div class="section-divider"></div>
+                        <p class="subtitle" style="margin-bottom:1rem;">Short issues and workarounds shown as a collapsible strip on the dashboard.</p>
+                        <form id="gotcha-form" novalidate>
+                            <div class="form-grid">
+                                <div class="form-group full">
+                                    <label for="gotcha-issue">Issue <span class="required">*</span></label>
+                                    <input type="text" id="gotcha-issue" placeholder="e.g. Cisco mic loses VLAN config on reboot">
+                                </div>
+                                <div class="form-group full">
+                                    <label for="gotcha-workaround">Workaround <span class="required">*</span></label>
+                                    <textarea id="gotcha-workaround" placeholder="e.g. Manually re-apply the VLAN config via the web UI after each reboot." style="min-height:60px;"></textarea>
+                                </div>
+                            </div>
+                            <div class="form-actions" style="margin-top:1rem;">
+                                <button type="submit" class="btn-submit" id="gotcha-submit-btn" style="padding:0.5rem 1.25rem;font-size:0.85rem;">Add Known Issue</button>
+                            </div>
+                            <div class="status" id="gotcha-status"></div>
+                        </form>
+                        <div id="gotchas-list" style="margin-top:1.25rem;"></div>
+                    </div>
+                </div>
+
             </div>
-
         </div>
-
     </div>
 
     <script src="admin.js"></script>
