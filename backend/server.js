@@ -149,6 +149,7 @@ async function notifyNewKnownIssue(entry) {
             subject: 'New Known Issue Submitted — PoC Lab',
             text,
         });
+        console.log('Notification email sent successfully');
     } catch (err) {
         console.error('Failed to send notification email:', err.message);
     }
@@ -184,4 +185,11 @@ app.delete('/api/gotchas/:index', requireAuth, (req, res) => {
     res.status(204).send();
 });
 
-app.listen(3000, () => console.log('PoC Lab backend running on port 3000'));
+app.listen(3000, () => {
+    console.log('PoC Lab backend running on port 3000');
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+        console.log(`Email notifications enabled — sending from ${process.env.SMTP_FROM || process.env.SMTP_USER} via ${process.env.SMTP_HOST || 'smtp.gmail.com'}`);
+    } else {
+        console.log('Email notifications disabled — SMTP_USER or SMTP_PASS not set');
+    }
+});
