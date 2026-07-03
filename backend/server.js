@@ -83,20 +83,46 @@ app.delete('/api/entries/:index', requireAuth, (req, res) => {
     res.status(204).send();
 });
 
-// ── Gotchas (public read) ─────────────────────────────────────────────────
+// ── Gotchas (public read — approved only) ────────────────────────────────
 app.get('/api/gotchas', (req, res) => {
+    res.json(readGotchas().filter(g => g.status !== 'pending'));
+});
+
+// ── Gotchas (admin read — all including pending) ──────────────────────────
+app.get('/api/gotchas/all', requireAuth, (req, res) => {
     res.json(readGotchas());
 });
 
-// ── Gotchas (admin write) ─────────────────────────────────────────────────
+// ── Gotchas (public suggest — lands as pending) ───────────────────────────
+app.post('/api/gotchas/suggest', (req, res) => {
+    const { issue, workaround } = req.body || {};
+    if (!issue || !workaround) return res.status(400).json({ error: 'issue and workaround are required' });
+    const data  = readGotchas();
+    const entry = { issue, workaround, date: new Date().toISOString().split('T')[0], status: 'pending' };
+    data.push(entry);
+    writeGotchas(data);
+    res.status(201).json(entry);
+});
+
+// ── Gotchas (admin write — goes live immediately) ─────────────────────────
 app.post('/api/gotchas', requireAuth, (req, res) => {
     const { issue, workaround } = req.body || {};
     if (!issue || !workaround) return res.status(400).json({ error: 'issue and workaround are required' });
     const data  = readGotchas();
-    const entry = { issue, workaround, date: new Date().toISOString().split('T')[0] };
+    const entry = { issue, workaround, date: new Date().toISOString().split('T')[0], status: 'approved' };
     data.unshift(entry);
     writeGotchas(data);
     res.status(201).json(entry);
+});
+
+// ── Gotchas (admin approve pending) ──────────────────────────────────────
+app.put('/api/gotchas/:index/approve', requireAuth, (req, res) => {
+    const idx  = parseInt(req.params.index, 10);
+    const data = readGotchas();
+    if (isNaN(idx) || idx < 0 || idx >= data.length) return res.status(404).json({ error: 'Not found' });
+    data[idx].status = 'approved';
+    writeGotchas(data);
+    res.json(data[idx]);
 });
 
 app.delete('/api/gotchas/:index', requireAuth, (req, res) => {

@@ -449,11 +449,72 @@ function submitPoCRequest(event) {
     document.getElementById('poc-form').reset();
 }
 
+// ── Report a Gotcha Modal ─────────────────────────────────────────────────
+function openGotchaModal() {
+    document.getElementById('gotcha-modal-overlay').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    document.getElementById('gotcha-issue-input').focus();
+}
+
+function closeGotchaModal(event) {
+    if (event && event.target !== document.getElementById('gotcha-modal-overlay')) return;
+    document.getElementById('gotcha-modal-overlay').classList.add('hidden');
+    document.body.style.overflow = '';
+    document.getElementById('gotcha-report-form').reset();
+    const msg = document.getElementById('gotcha-report-msg');
+    msg.textContent = '';
+    msg.style.color = '';
+}
+
+async function submitGotchaReport(event) {
+    event.preventDefault();
+    const issue      = document.getElementById('gotcha-issue-input').value.trim();
+    const workaround = document.getElementById('gotcha-workaround-input').value.trim();
+    const msg        = document.getElementById('gotcha-report-msg');
+
+    if (!issue || !workaround) {
+        msg.style.color  = '#991b1b';
+        msg.textContent  = 'Please fill in both fields.';
+        return;
+    }
+
+    msg.style.color  = '#5b21b6';
+    msg.textContent  = 'Submitting...';
+
+    try {
+        const res = await fetch('/api/gotchas/suggest', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ issue, workaround })
+        });
+
+        if (res.ok) {
+            msg.style.color = '#065f46';
+            msg.textContent = 'Thanks! Your gotcha has been submitted for review.';
+            document.getElementById('gotcha-issue-input').value      = '';
+            document.getElementById('gotcha-workaround-input').value = '';
+            setTimeout(() => {
+                document.getElementById('gotcha-modal-overlay').classList.add('hidden');
+                document.body.style.overflow = '';
+                msg.textContent = '';
+                msg.style.color = '';
+            }, 2200);
+        } else {
+            msg.style.color = '#991b1b';
+            msg.textContent = 'Failed to submit — please try again.';
+        }
+    } catch {
+        msg.style.color = '#991b1b';
+        msg.textContent = 'Network error. Please try again.';
+    }
+}
+
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         document.getElementById('submit-modal-overlay').classList.add('hidden');
         document.getElementById('bench-modal-overlay').classList.add('hidden');
         document.getElementById('poc-modal-overlay').classList.add('hidden');
+        document.getElementById('gotcha-modal-overlay').classList.add('hidden');
         document.body.style.overflow = '';
     }
 });

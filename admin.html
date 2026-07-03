@@ -264,6 +264,21 @@
 
         .entry-row-edit:hover { background: #eff6ff; }
 
+        .entry-row-approve {
+            flex-shrink: 0;
+            background: none;
+            border: 1px solid #fdba74;
+            border-radius: 5px;
+            padding: 0.25rem 0.65rem;
+            font-size: 0.78rem;
+            color: #c2410c;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .entry-row-approve:hover { background: #fff7ed; }
+        .entry-row-approve:disabled { opacity: 0.4; cursor: not-allowed; }
+
         .entry-edit-form {
             background: #f8fafc;
             border: 1px solid #e1e4e8;

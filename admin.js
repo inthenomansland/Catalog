@@ -363,7 +363,12 @@ async function loadGotchas() {
     list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">Loading...</p>';
 
     try {
-        const res     = await fetch('/api/gotchas');
+        const res = await fetch('/api/gotchas/all', {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+
+        if (res.status === 401) { logout(); return; }
+
         const gotchas = await res.json();
 
         if (gotchas.length === 0) {
@@ -372,20 +377,75 @@ async function loadGotchas() {
         }
 
         list.innerHTML = '';
-        gotchas.forEach((g, idx) => {
-            const row = document.createElement('div');
-            row.className = 'entry-row';
-            row.innerHTML = `
-                <div class="entry-row-info">
-                    <span class="entry-row-title">${escapeHtml(g.issue)}</span>
-                    <span class="entry-row-meta">${escapeHtml(g.workaround)}</span>
-                </div>
-                <button class="entry-row-delete" onclick="deleteGotcha(${idx}, this)">Delete</button>
-            `;
-            list.appendChild(row);
-        });
+
+        const pending  = gotchas.map((g, i) => ({ ...g, _idx: i })).filter(g => g.status === 'pending');
+        const approved = gotchas.map((g, i) => ({ ...g, _idx: i })).filter(g => g.status !== 'pending');
+
+        if (pending.length > 0) {
+            const heading = document.createElement('p');
+            heading.style.cssText = 'font-size:0.78rem;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;margin-top:0.25rem;';
+            heading.textContent   = `Pending approval (${pending.length})`;
+            list.appendChild(heading);
+
+            pending.forEach(g => {
+                const row = document.createElement('div');
+                row.className = 'entry-row';
+                row.style.cssText = 'border-left:3px solid #f97316;padding-left:0.6rem;background:#fff7ed;';
+                row.innerHTML = `
+                    <div class="entry-row-info">
+                        <span class="entry-row-title">${escapeHtml(g.issue)}</span>
+                        <span class="entry-row-meta">${escapeHtml(g.workaround)}</span>
+                    </div>
+                    <div class="entry-row-actions">
+                        <button class="entry-row-approve" onclick="approveGotcha(${g._idx}, this)">Approve</button>
+                        <button class="entry-row-delete"  onclick="deleteGotcha(${g._idx}, this)">Reject</button>
+                    </div>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        if (approved.length > 0) {
+            if (pending.length > 0) {
+                const divider = document.createElement('p');
+                divider.style.cssText = 'font-size:0.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;margin-top:1rem;';
+                divider.textContent   = 'Live';
+                list.appendChild(divider);
+            }
+
+            approved.forEach(g => {
+                const row = document.createElement('div');
+                row.className = 'entry-row';
+                row.innerHTML = `
+                    <div class="entry-row-info">
+                        <span class="entry-row-title">${escapeHtml(g.issue)}</span>
+                        <span class="entry-row-meta">${escapeHtml(g.workaround)}</span>
+                    </div>
+                    <button class="entry-row-delete" onclick="deleteGotcha(${g._idx}, this)">Delete</button>
+                `;
+                list.appendChild(row);
+            });
+        }
     } catch {
         list.innerHTML = '<p style="color:#991b1b;font-size:0.85rem;">Failed to load gotchas.</p>';
+    }
+}
+
+async function approveGotcha(idx, btn) {
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/gotchas/${idx}/approve`, {
+            method:  'PUT',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+
+        if (res.status === 401) { logout(); return; }
+        if (res.ok) loadGotchas();
+        else { alert('Failed to approve.'); btn.disabled = false; }
+    } catch {
+        alert('Network error.');
+        btn.disabled = false;
     }
 }
 

@@ -18,6 +18,7 @@
                 <button class="header-btn header-btn--outline" onclick="openSubmitModal()">Submit Report</button>
                 <button class="header-btn header-btn--outline" onclick="openBenchModal()">Request Bench Test</button>
                 <button class="header-btn header-btn--filled" onclick="openPoCModal()">Request a PoC</button>
+                <button class="header-btn header-btn--outline" onclick="openGotchaModal()">Report a Gotcha</button>
             </div>
         </div>
     </header>
@@ -240,6 +241,36 @@
                 <div class="modal-footer">
                     <button type="button" class="modal-btn-cancel" onclick="closePoCModal()">Cancel</button>
                     <button type="submit" class="modal-btn-submit">Send Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Report a Gotcha Modal -->
+    <div id="gotcha-modal-overlay" class="modal-overlay hidden" onclick="closeGotchaModal(event)">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <h2>Report a Gotcha</h2>
+                    <p>Found an issue or a workaround? Submit it for review — if approved it'll appear on the dashboard.</p>
+                </div>
+                <button class="modal-close" onclick="closeGotchaModal()">&times;</button>
+            </div>
+            <form id="gotcha-report-form" onsubmit="submitGotchaReport(event)">
+                <div class="modal-body">
+                    <div class="modal-field">
+                        <label for="gotcha-issue-input">Issue</label>
+                        <input type="text" id="gotcha-issue-input" placeholder="e.g. Cisco mic loses VLAN config on reboot">
+                    </div>
+                    <div class="modal-field">
+                        <label for="gotcha-workaround-input">Workaround</label>
+                        <textarea id="gotcha-workaround-input" placeholder="Describe the workaround..."></textarea>
+                    </div>
+                    <p id="gotcha-report-msg" style="font-size:0.85rem;margin-top:0.5rem;min-height:1.2em;"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="modal-btn-cancel" onclick="closeGotchaModal()">Cancel</button>
+                    <button type="submit" class="modal-btn-submit">Submit</button>
                 </div>
             </form>
         </div>
