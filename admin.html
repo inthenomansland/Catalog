@@ -402,6 +402,10 @@
                 <span>Subscribers</span>
                 <span class="sb-badge sb-badge--gray" id="sb-subscribers" style="display:none"></span>
             </a>
+            <a class="sidebar-item" id="nav-requests" onclick="scrollToSection('section-requests')">
+                <span>Requests</span>
+                <span class="sb-badge sb-badge--orange" id="sb-requests-pending" style="display:none"></span>
+            </a>
             <a class="sidebar-item" id="nav-issues" onclick="scrollToSection('section-issues')">
                 <span>Known Issues</span>
                 <span class="sb-badge sb-badge--orange" id="sb-issues-pending" style="display:none"></span>
@@ -518,6 +522,22 @@
                     <div class="section-body">
                         <div class="section-divider"></div>
                         <div id="entries-list"></div>
+                    </div>
+                </div>
+
+                <!-- Requests -->
+                <div class="section-card" id="section-requests">
+                    <div class="section-header" onclick="toggleSection('section-requests')">
+                        <div class="section-header-left">
+                            <h3>Requests</h3>
+                            <span class="section-header-badge badge--orange" id="requests-pending-badge" style="display:none"></span>
+                        </div>
+                        <button class="section-toggle" aria-label="Toggle section">&#8250;</button>
+                    </div>
+                    <div class="section-body">
+                        <div class="section-divider"></div>
+                        <p class="subtitle" style="margin-bottom:1rem;">Bench Test and PoC requests submitted via the catalogue.</p>
+                        <div id="requests-list"></div>
                     </div>
                 </div>
 

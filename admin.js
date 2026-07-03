@@ -15,6 +15,7 @@ function showAdminForm() {
     document.getElementById('admin-sidebar').classList.add('visible');
     restoreSectionStates();
     loadEntries();
+    loadRequests();
     loadSubscribers();
     loadGotchas();
 }
@@ -315,6 +316,137 @@ async function deleteEntry(idx, btn) {
             alert('Failed to delete. Please try again.');
             btn.disabled = false;
         }
+    } catch {
+        alert('Network error.');
+        btn.disabled = false;
+    }
+}
+
+// ── Requests ──────────────────────────────────────────────────────────────
+async function loadRequests() {
+    const list = document.getElementById('requests-list');
+    list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">Loading...</p>';
+
+    try {
+        const res = await fetch('/api/requests', {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (res.status === 401) { logout(); return; }
+
+        const requests = await res.json();
+
+        if (requests.length === 0) {
+            list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">No requests yet.</p>';
+            updateBadge('requests-pending-badge', 0, false);
+            updateBadge('sb-requests-pending',   0, false);
+            return;
+        }
+
+        const pending  = requests.map((r, i) => ({ ...r, _idx: i })).filter(r => r.status === 'pending');
+        const reviewed = requests.map((r, i) => ({ ...r, _idx: i })).filter(r => r.status !== 'pending');
+
+        updateBadge('requests-pending-badge', pending.length, pending.length > 0);
+        updateBadge('sb-requests-pending',   pending.length, pending.length > 0);
+
+        list.innerHTML = '';
+
+        if (pending.length > 0) {
+            const h = document.createElement('p');
+            h.style.cssText = 'font-size:0.78rem;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;margin-top:0.25rem;';
+            h.textContent   = `Pending (${pending.length})`;
+            list.appendChild(h);
+            pending.forEach(r => list.appendChild(buildRequestRow(r, true)));
+        }
+
+        if (reviewed.length > 0) {
+            if (pending.length > 0) {
+                const d = document.createElement('p');
+                d.style.cssText = 'font-size:0.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;margin-top:1rem;';
+                d.textContent   = 'Reviewed';
+                list.appendChild(d);
+            }
+            reviewed.forEach(r => list.appendChild(buildRequestRow(r, false)));
+        }
+    } catch {
+        list.innerHTML = '<p style="color:#991b1b;font-size:0.85rem;">Failed to load requests.</p>';
+    }
+}
+
+function buildRequestRow(r, isPending) {
+    const wrap = document.createElement('div');
+    wrap.id    = `request-row-${r._idx}`;
+
+    if (isPending) {
+        wrap.style.cssText = 'border-left:3px solid #f97316;padding-left:0.6rem;background:#fff7ed;margin-bottom:0.25rem;border-radius:0 6px 6px 0;';
+    }
+
+    const typeBg  = r.type === 'bench' ? '#dbeafe' : '#ede9fe';
+    const typeFg  = r.type === 'bench' ? '#1d4ed8' : '#6d28d9';
+    const typeStr = r.type === 'bench' ? 'Bench Test' : 'PoC';
+    const badge   = `<span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:0.72rem;font-weight:700;background:${typeBg};color:${typeFg};margin-right:0.4rem;">${typeStr}</span>`;
+
+    const dateRange = r.dateStart
+        ? `<span class="entry-row-meta">Dates: ${r.dateStart}${r.dateEnd ? ' → ' + r.dateEnd : ''}</span>`
+        : '';
+
+    wrap.innerHTML = `
+        <div class="entry-row">
+            <div class="entry-row-info">
+                <span class="entry-row-title">${badge}${escapeHtml(r.jobName)}</span>
+                <span class="entry-row-meta">${escapeHtml(r.submitterName)} · Submitted ${r.submittedDate || '—'}</span>
+                ${dateRange}
+            </div>
+            <div class="entry-row-actions">
+                <button class="entry-row-edit" onclick="toggleRequestDetail(${r._idx})">Details</button>
+                ${isPending ? `<button class="entry-row-approve" onclick="approveRequest(${r._idx}, this)">Approve</button>
+                <button class="entry-row-delete"  onclick="deleteRequest(${r._idx}, this)">Decline</button>` : `<button class="entry-row-delete" onclick="deleteRequest(${r._idx}, this)">Delete</button>`}
+            </div>
+        </div>
+        <div id="request-detail-${r._idx}" class="hidden" style="background:#f8fafc;border:1px solid #e1e4e8;border-left:3px solid #6DC52D;border-radius:8px;padding:1.1rem;margin:0.25rem 0 0.5rem;">
+            ${r.submitterEmail ? `<p style="font-size:0.82rem;margin-bottom:0.6rem;"><strong>Email:</strong> ${escapeHtml(r.submitterEmail)}</p>` : ''}
+            ${r.persons        ? `<p style="font-size:0.82rem;margin-bottom:0.75rem;"><strong>Persons:</strong> ${escapeHtml(r.persons)}</p>` : ''}
+            ${r.scope    ? `<div style="margin-bottom:0.75rem;"><p style="font-size:0.75rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.25rem;">Scope</p><p style="font-size:0.82rem;line-height:1.6;white-space:pre-wrap;">${escapeHtml(r.scope)}</p></div>` : ''}
+            ${r.outcomes ? `<div style="margin-bottom:0.75rem;"><p style="font-size:0.75rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.25rem;">Expected outcomes</p><p style="font-size:0.82rem;line-height:1.6;white-space:pre-wrap;">${escapeHtml(r.outcomes)}</p></div>` : ''}
+            ${r.kit      ? `<div><p style="font-size:0.75rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.25rem;">Kit / equipment required</p><p style="font-size:0.82rem;line-height:1.6;white-space:pre-wrap;">${escapeHtml(r.kit)}</p></div>` : ''}
+        </div>
+    `;
+    return wrap;
+}
+
+function toggleRequestDetail(idx) {
+    const detail = document.getElementById(`request-detail-${idx}`);
+    const btn    = document.querySelector(`#request-row-${idx} .entry-row-edit`);
+    const isNowHidden = detail.classList.toggle('hidden');
+    btn.textContent   = isNowHidden ? 'Details' : 'Close';
+}
+
+async function approveRequest(idx, btn) {
+    btn.disabled = true;
+    try {
+        const res = await fetch(`/api/requests/${idx}/approve`, {
+            method:  'PUT',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (res.status === 401) { logout(); return; }
+        if (res.ok) loadRequests();
+        else { alert('Failed to approve.'); btn.disabled = false; }
+    } catch {
+        alert('Network error.');
+        btn.disabled = false;
+    }
+}
+
+async function deleteRequest(idx, btn) {
+    if (!confirm('Delete this request? This cannot be undone.')) return;
+    btn.disabled = true;
+    try {
+        const res = await fetch(`/api/requests/${idx}`, {
+            method:  'DELETE',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (res.status === 401) { logout(); return; }
+        if (res.ok) loadRequests();
+        else { alert('Failed to delete.'); btn.disabled = false; }
     } catch {
         alert('Network error.');
         btn.disabled = false;

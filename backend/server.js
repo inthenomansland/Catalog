@@ -29,6 +29,7 @@ const DEFAULT_DATA      = path.join(__dirname, 'data-default.json');
 const GOTCHAS_FILE      = path.join(DATA_DIR, 'gotchas.json');
 const SUBSCRIBERS_FILE  = path.join(DATA_DIR, 'subscribers.json');
 const DIGEST_STATE_FILE = path.join(DATA_DIR, 'digest-state.json');
+const REQUESTS_FILE     = path.join(DATA_DIR, 'requests.json');
 const SITE_URL          = 'https://poc-lab.av.proav.cloud';
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -43,6 +44,7 @@ if (!fs.existsSync(DATA_FILE))         { fs.copyFileSync(DEFAULT_DATA, DATA_FILE
 if (!fs.existsSync(GOTCHAS_FILE))      fs.writeFileSync(GOTCHAS_FILE,     '[]', 'utf8');
 if (!fs.existsSync(SUBSCRIBERS_FILE))  fs.writeFileSync(SUBSCRIBERS_FILE, '[]', 'utf8');
 if (!fs.existsSync(DIGEST_STATE_FILE)) fs.writeFileSync(DIGEST_STATE_FILE, JSON.stringify({ lastWeekly: null, lastMonthly: null }), 'utf8');
+if (!fs.existsSync(REQUESTS_FILE))     fs.writeFileSync(REQUESTS_FILE,     '[]', 'utf8');
 
 function readData()             { return JSON.parse(fs.readFileSync(DATA_FILE,         'utf8')); }
 function writeData(data)        { fs.writeFileSync(DATA_FILE,         JSON.stringify(data, null, 2), 'utf8'); }
@@ -52,6 +54,8 @@ function readSubscribers()      { return JSON.parse(fs.readFileSync(SUBSCRIBERS_
 function writeSubscribers(data) { fs.writeFileSync(SUBSCRIBERS_FILE,  JSON.stringify(data, null, 2), 'utf8'); }
 function readDigestState()      { return JSON.parse(fs.readFileSync(DIGEST_STATE_FILE, 'utf8')); }
 function writeDigestState(data) { fs.writeFileSync(DIGEST_STATE_FILE, JSON.stringify(data, null, 2), 'utf8'); }
+function readRequests()         { return JSON.parse(fs.readFileSync(REQUESTS_FILE,     'utf8')); }
+function writeRequests(data)    { fs.writeFileSync(REQUESTS_FILE,     JSON.stringify(data, null, 2), 'utf8'); }
 
 function generateToken() { return crypto.randomBytes(32).toString('hex'); }
 
@@ -88,6 +92,36 @@ async function sendEmail({ to, subject, text }) {
     } catch (err) {
         console.error(`Failed to send email to ${to} (login: ${user}):`, err.message);
     }
+}
+
+// ── Request admin notification ────────────────────────────────────────────
+async function notifyNewRequest(r) {
+    const typeName = r.type === 'bench' ? 'Bench Test' : 'PoC';
+    await sendEmail({
+        to:      'poc.lab@proav.com',
+        subject: `New ${typeName} Request: ${r.jobName || 'Untitled'} — PoC Lab`,
+        text: [
+            `A new ${typeName} request has been submitted and is awaiting your review.`,
+            '',
+            `Submitted by: ${r.submitterName}${r.submitterEmail ? ` (${r.submitterEmail})` : ''}`,
+            `Job Name:     ${r.jobName   || '—'}`,
+            `Start Date:   ${r.dateStart || '—'}`,
+            `End Date:     ${r.dateEnd   || '—'}`,
+            `Persons:      ${r.persons   || '—'}`,
+            '',
+            'Scope:',
+            r.scope    || '—',
+            '',
+            'Expected Outcomes:',
+            r.outcomes || '—',
+            '',
+            'Kit / Equipment Required:',
+            r.kit      || '—',
+            '',
+            'Log in to the admin panel to review:',
+            `${SITE_URL}/admin.html`,
+        ].join('\n'),
+    });
 }
 
 // ── Known issue admin notification ───────────────────────────────────────
@@ -341,6 +375,53 @@ app.delete('/api/admin/subscribers/:index', requireAuth, (req, res) => {
     if (isNaN(idx) || idx < 0 || idx >= subs.length) return res.status(404).json({ error: 'Not found' });
     subs.splice(idx, 1);
     writeSubscribers(subs);
+    res.status(204).send();
+});
+
+// ── Requests (public submit) ──────────────────────────────────────────────
+app.post('/api/requests', async (req, res) => {
+    const { type, submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons } = req.body || {};
+    if (!type || !['bench', 'poc'].includes(type)) return res.status(400).json({ error: 'type must be bench or poc' });
+    if (!submitterName) return res.status(400).json({ error: 'submitterName is required' });
+    if (!jobName)       return res.status(400).json({ error: 'jobName is required' });
+
+    const requests = readRequests();
+    const entry = {
+        type, submitterName, submitterEmail: submitterEmail || null,
+        jobName, scope: scope || null, outcomes: outcomes || null,
+        kit: kit || null, dateStart: dateStart || null, dateEnd: dateEnd || null,
+        persons: persons || null,
+        submittedDate: new Date().toISOString().split('T')[0],
+        status: 'pending',
+    };
+    requests.push(entry);
+    writeRequests(requests);
+    res.status(201).json(entry);
+    notifyNewRequest(entry);
+});
+
+// ── Requests (admin read) ─────────────────────────────────────────────────
+app.get('/api/requests', requireAuth, (req, res) => {
+    res.json(readRequests());
+});
+
+// ── Requests (admin approve) ──────────────────────────────────────────────
+app.put('/api/requests/:index/approve', requireAuth, (req, res) => {
+    const idx      = parseInt(req.params.index, 10);
+    const requests = readRequests();
+    if (isNaN(idx) || idx < 0 || idx >= requests.length) return res.status(404).json({ error: 'Not found' });
+    requests[idx].status = 'approved';
+    writeRequests(requests);
+    res.json(requests[idx]);
+});
+
+// ── Requests (admin delete) ───────────────────────────────────────────────
+app.delete('/api/requests/:index', requireAuth, (req, res) => {
+    const idx      = parseInt(req.params.index, 10);
+    const requests = readRequests();
+    if (isNaN(idx) || idx < 0 || idx >= requests.length) return res.status(404).json({ error: 'Not found' });
+    requests.splice(idx, 1);
+    writeRequests(requests);
     res.status(204).send();
 });
 

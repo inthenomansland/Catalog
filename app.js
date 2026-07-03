@@ -342,51 +342,57 @@ function closeBenchModal(event) {
     document.getElementById('bench-modal-overlay').classList.add('hidden');
     document.body.style.overflow = '';
     document.getElementById('bench-form').reset();
+    const msg = document.getElementById('bench-msg');
+    msg.style.display = 'none'; msg.textContent = '';
 }
 
-function submitBenchRequest(event) {
+async function submitBenchRequest(event) {
     event.preventDefault();
 
-    const jobName   = document.getElementById('bench-job-name').value.trim();
-    const scope     = document.getElementById('bench-scope').value.trim();
-    const outcomes  = document.getElementById('bench-outcomes').value.trim();
-    const kit       = document.getElementById('bench-kit').value.trim();
-    const dateStart = document.getElementById('bench-date-start').value;
-    const dateEnd   = document.getElementById('bench-date-end').value;
-    const persons   = document.getElementById('bench-persons').value.trim();
+    const submitterName  = document.getElementById('bench-submitter-name').value.trim();
+    const submitterEmail = document.getElementById('bench-submitter-email').value.trim();
+    const jobName        = document.getElementById('bench-job-name').value.trim();
+    const scope          = document.getElementById('bench-scope').value.trim();
+    const outcomes       = document.getElementById('bench-outcomes').value.trim();
+    const kit            = document.getElementById('bench-kit').value.trim();
+    const dateStart      = document.getElementById('bench-date-start').value;
+    const dateEnd        = document.getElementById('bench-date-end').value;
+    const persons        = document.getElementById('bench-persons').value.trim();
+    const msg            = document.getElementById('bench-msg');
 
-    const subject = jobName ? `Bench Test Request: ${jobName}` : 'New Bench Test Request';
+    if (!submitterName || !jobName) {
+        msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
+        msg.textContent   = 'Please fill in your name and a job name.';
+        return;
+    }
 
-    const body = [
-        'BENCH TEST REQUEST',
-        '==================',
-        '',
-        `Job Name:                 ${jobName   || 'Not provided'}`,
-        `Proposed Start Date:      ${dateStart || 'Not provided'}`,
-        `Proposed End Date:        ${dateEnd   || 'Not provided'}`,
-        `Persons Conducting Test:  ${persons   || 'Not provided'}`,
-        '',
-        'SCOPE',
-        '-----',
-        scope    || 'Not provided',
-        '',
-        'EXPECTED OUTCOMES',
-        '-----------------',
-        outcomes || 'Not provided',
-        '',
-        'KIT / EQUIPMENT REQUIRED',
-        '------------------------',
-        kit      || 'Not provided',
-        '',
-        '---',
-        'Submitted via proAV PoC Lab Catalogue',
-    ].join('\n');
+    msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;';
+    msg.textContent   = 'Submitting...';
 
-    window.location.href = `mailto:poc.lab@proav.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    try {
+        const res = await fetch('/api/requests', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ type: 'bench', submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons }),
+        });
 
-    document.getElementById('bench-modal-overlay').classList.add('hidden');
-    document.body.style.overflow = '';
-    document.getElementById('bench-form').reset();
+        if (res.ok) {
+            msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;';
+            msg.textContent   = 'Request submitted! The team will be in touch to confirm your dates.';
+            setTimeout(() => {
+                document.getElementById('bench-modal-overlay').classList.add('hidden');
+                document.body.style.overflow = '';
+                document.getElementById('bench-form').reset();
+                msg.style.display = 'none';
+            }, 2500);
+        } else {
+            msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
+            msg.textContent   = 'Failed to submit — please try again.';
+        }
+    } catch {
+        msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
+        msg.textContent   = 'Network error. Please try again.';
+    }
 }
 
 // ── Request a PoC Modal ───────────────────────────────────────────────────
@@ -402,51 +408,57 @@ function closePoCModal(event) {
     document.getElementById('poc-modal-overlay').classList.add('hidden');
     document.body.style.overflow = '';
     document.getElementById('poc-form').reset();
+    const msg = document.getElementById('poc-msg');
+    msg.style.display = 'none'; msg.textContent = '';
 }
 
-function submitPoCRequest(event) {
+async function submitPoCRequest(event) {
     event.preventDefault();
 
-    const jobName   = document.getElementById('poc-job-name').value.trim();
-    const scope     = document.getElementById('poc-scope').value.trim();
-    const outcomes  = document.getElementById('poc-outcomes').value.trim();
-    const kit       = document.getElementById('poc-kit').value.trim();
-    const dateStart = document.getElementById('poc-date-start').value;
-    const dateEnd   = document.getElementById('poc-date-end').value;
-    const persons   = document.getElementById('poc-persons').value.trim();
+    const submitterName  = document.getElementById('poc-submitter-name').value.trim();
+    const submitterEmail = document.getElementById('poc-submitter-email').value.trim();
+    const jobName        = document.getElementById('poc-job-name').value.trim();
+    const scope          = document.getElementById('poc-scope').value.trim();
+    const outcomes       = document.getElementById('poc-outcomes').value.trim();
+    const kit            = document.getElementById('poc-kit').value.trim();
+    const dateStart      = document.getElementById('poc-date-start').value;
+    const dateEnd        = document.getElementById('poc-date-end').value;
+    const persons        = document.getElementById('poc-persons').value.trim();
+    const msg            = document.getElementById('poc-msg');
 
-    const subject = jobName ? `PoC Request: ${jobName}` : 'New PoC Request';
+    if (!submitterName || !jobName) {
+        msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
+        msg.textContent   = 'Please fill in your name and a job name.';
+        return;
+    }
 
-    const body = [
-        'POC LAB REQUEST',
-        '================',
-        '',
-        `Job Name:                 ${jobName   || 'Not provided'}`,
-        `Proposed Start Date:      ${dateStart || 'Not provided'}`,
-        `Proposed End Date:        ${dateEnd   || 'Not provided'}`,
-        `Persons Conducting Test:  ${persons   || 'Not provided'}`,
-        '',
-        'SCOPE',
-        '-----',
-        scope    || 'Not provided',
-        '',
-        'EXPECTED OUTCOMES',
-        '-----------------',
-        outcomes || 'Not provided',
-        '',
-        'KIT / EQUIPMENT REQUIRED',
-        '------------------------',
-        kit      || 'Not provided',
-        '',
-        '---',
-        'Submitted via proAV PoC Lab Catalogue',
-    ].join('\n');
+    msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;';
+    msg.textContent   = 'Submitting...';
 
-    window.location.href = `mailto:poc.lab@proav.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    try {
+        const res = await fetch('/api/requests', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ type: 'poc', submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons }),
+        });
 
-    document.getElementById('poc-modal-overlay').classList.add('hidden');
-    document.body.style.overflow = '';
-    document.getElementById('poc-form').reset();
+        if (res.ok) {
+            msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;';
+            msg.textContent   = 'Request submitted! The team will be in touch to confirm your dates.';
+            setTimeout(() => {
+                document.getElementById('poc-modal-overlay').classList.add('hidden');
+                document.body.style.overflow = '';
+                document.getElementById('poc-form').reset();
+                msg.style.display = 'none';
+            }, 2500);
+        } else {
+            msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
+            msg.textContent   = 'Failed to submit — please try again.';
+        }
+    } catch {
+        msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
+        msg.textContent   = 'Network error. Please try again.';
+    }
 }
 
 // ── Unsubscribe handler ───────────────────────────────────────────────────
