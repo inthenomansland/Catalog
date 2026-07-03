@@ -19,15 +19,17 @@ const JWT_SECRET     = process.env.JWT_SECRET;
 if (!ADMIN_PASSWORD) throw new Error('ADMIN_PASSWORD environment variable is required');
 if (!JWT_SECRET)     throw new Error('JWT_SECRET environment variable is required');
 
-// Bootstrap data volume on first run
-if (!fs.existsSync(DATA_DIR))  fs.mkdirSync(DATA_DIR, { recursive: true });
-if (!fs.existsSync(DATA_FILE)) {
-    fs.copyFileSync(DEFAULT_DATA, DATA_FILE);
-    console.log('Initialised data.json from bundled default');
-}
+const GOTCHAS_FILE = path.join(DATA_DIR, 'gotchas.json');
 
-function readData()      { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
-function writeData(data) { fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8'); }
+// Bootstrap data volume on first run
+if (!fs.existsSync(DATA_DIR))     fs.mkdirSync(DATA_DIR, { recursive: true });
+if (!fs.existsSync(DATA_FILE))    { fs.copyFileSync(DEFAULT_DATA, DATA_FILE); console.log('Initialised data.json from bundled default'); }
+if (!fs.existsSync(GOTCHAS_FILE)) fs.writeFileSync(GOTCHAS_FILE, '[]', 'utf8');
+
+function readData()         { return JSON.parse(fs.readFileSync(DATA_FILE,    'utf8')); }
+function writeData(data)    { fs.writeFileSync(DATA_FILE,    JSON.stringify(data, null, 2), 'utf8'); }
+function readGotchas()      { return JSON.parse(fs.readFileSync(GOTCHAS_FILE, 'utf8')); }
+function writeGotchas(data) { fs.writeFileSync(GOTCHAS_FILE, JSON.stringify(data, null, 2), 'utf8'); }
 
 function requireAuth(req, res, next) {
     const auth = req.headers.authorization;
@@ -78,6 +80,31 @@ app.delete('/api/entries/:index', requireAuth, (req, res) => {
     if (isNaN(idx) || idx < 0 || idx >= data.length) return res.status(404).json({ error: 'Not found' });
     data.splice(idx, 1);
     writeData(data);
+    res.status(204).send();
+});
+
+// ── Gotchas (public read) ─────────────────────────────────────────────────
+app.get('/api/gotchas', (req, res) => {
+    res.json(readGotchas());
+});
+
+// ── Gotchas (admin write) ─────────────────────────────────────────────────
+app.post('/api/gotchas', requireAuth, (req, res) => {
+    const { issue, workaround } = req.body || {};
+    if (!issue || !workaround) return res.status(400).json({ error: 'issue and workaround are required' });
+    const data  = readGotchas();
+    const entry = { issue, workaround, date: new Date().toISOString().split('T')[0] };
+    data.unshift(entry);
+    writeGotchas(data);
+    res.status(201).json(entry);
+});
+
+app.delete('/api/gotchas/:index', requireAuth, (req, res) => {
+    const idx  = parseInt(req.params.index, 10);
+    const data = readGotchas();
+    if (isNaN(idx) || idx < 0 || idx >= data.length) return res.status(404).json({ error: 'Not found' });
+    data.splice(idx, 1);
+    writeGotchas(data);
     res.status(204).send();
 });
 

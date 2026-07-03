@@ -213,6 +213,85 @@ main {
 
 .whats-new-section .btn-secondary:hover { background: #374151; }
 
+/* ── Gotchas ── */
+.gotchas-section {
+    margin-bottom: 1.5rem;
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.gotchas-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.7rem 1.1rem;
+    background: #fff7ed;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.1s;
+}
+
+.gotchas-toggle:hover { background: #ffedd5; }
+
+.gotchas-toggle-left {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.gotchas-icon { font-size: 0.9rem; color: #c2410c; }
+
+.gotchas-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #7c2d12;
+}
+
+.gotchas-count {
+    font-size: 0.72rem;
+    background: #fed7aa;
+    color: #7c2d12;
+    padding: 0.1rem 0.55rem;
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+.gotchas-chevron {
+    font-size: 0.65rem;
+    color: #c2410c;
+}
+
+.gotchas-list {
+    border-top: 1px solid #fed7aa;
+    background: #fffbf7;
+    padding: 0.85rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.gotcha-item {
+    padding: 0.65rem 0.85rem;
+    background: white;
+    border: 1px solid #fed7aa;
+    border-left: 3px solid #f97316;
+    border-radius: 6px;
+}
+
+.gotcha-issue {
+    font-size: 0.855rem;
+    font-weight: 600;
+    color: #0f1117;
+    margin-bottom: 0.3rem;
+}
+
+.gotcha-workaround {
+    font-size: 0.82rem;
+    color: #4b5563;
+    line-height: 1.5;
+}
+
 /* ── Grouped catalog ── */
 .catalog-grouped { }
 

@@ -1,10 +1,15 @@
 let allEntries = [];
+let allGotchas = [];
 const TYPE_ORDER = ['Kit', 'Program', 'Concept'];
 
 // ── Data loading ──────────────────────────────────────────────────────────
 async function loadData() {
-    const res = await fetch('/api/entries');
-    allEntries = await res.json();
+    const [entriesRes, gotchasRes] = await Promise.all([
+        fetch('/api/entries'),
+        fetch('/api/gotchas')
+    ]);
+    allEntries = await entriesRes.json();
+    allGotchas = await gotchasRes.json();
     allEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
     populateFilters();
     render(allEntries, false);
@@ -115,6 +120,40 @@ function buildWhatsNewSection(entries) {
     return section;
 }
 
+// ── Gotchas section ───────────────────────────────────────────────────────
+function buildGotchasSection(gotchas) {
+    const isOpen = localStorage.getItem('gotchas-open') === 'true';
+    const section = document.createElement('div');
+    section.className = 'gotchas-section';
+    section.innerHTML = `
+        <div class="gotchas-toggle" onclick="toggleGotchas()">
+            <div class="gotchas-toggle-left">
+                <span class="gotchas-icon">&#9888;</span>
+                <span class="gotchas-title">Gotchas &amp; Known Issues</span>
+                <span class="gotchas-count">${gotchas.length} item${gotchas.length !== 1 ? 's' : ''}</span>
+            </div>
+            <span class="gotchas-chevron" id="gotchas-chevron">${isOpen ? '▲' : '▼'}</span>
+        </div>
+        <div class="gotchas-list${isOpen ? '' : ' hidden'}" id="gotchas-list">
+            ${gotchas.map(g => `
+                <div class="gotcha-item">
+                    <div class="gotcha-issue">${g.issue}</div>
+                    <div class="gotcha-workaround"><strong>Workaround:</strong> ${g.workaround}</div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    return section;
+}
+
+function toggleGotchas() {
+    const list    = document.getElementById('gotchas-list');
+    const chevron = document.getElementById('gotchas-chevron');
+    const isNowOpen = list.classList.toggle('hidden') === false;
+    chevron.textContent = isNowOpen ? '▲' : '▼';
+    localStorage.setItem('gotchas-open', isNowOpen);
+}
+
 // ── Grouped catalog ───────────────────────────────────────────────────────
 function buildGroupedSection(entries) {
     const wrapper = document.createElement('div');
@@ -182,9 +221,8 @@ function render(entries, filtersActive) {
 
     if (!filtersActive) {
         const recent = entries.filter(e => isRecent(e.date));
-        if (recent.length > 0) {
-            root.appendChild(buildWhatsNewSection(recent));
-        }
+        if (recent.length > 0) root.appendChild(buildWhatsNewSection(recent));
+        if (allGotchas.length > 0) root.appendChild(buildGotchasSection(allGotchas));
     }
 
     root.appendChild(buildGroupedSection(entries));

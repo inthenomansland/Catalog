@@ -12,6 +12,7 @@ function showAdminForm() {
     document.getElementById('login-section').classList.add('hidden');
     document.getElementById('admin-form-section').classList.remove('hidden');
     loadEntries();
+    loadGotchas();
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────
@@ -313,11 +314,106 @@ async function deleteEntry(idx, btn) {
     }
 }
 
+// ── Gotchas ───────────────────────────────────────────────────────────────
+async function submitGotcha(event) {
+    event.preventDefault();
+    const btn      = document.getElementById('gotcha-submit-btn');
+    const status   = document.getElementById('gotcha-status');
+    const issue    = document.getElementById('gotcha-issue').value.trim();
+    const workaround = document.getElementById('gotcha-workaround').value.trim();
+
+    if (!issue || !workaround) {
+        status.className   = 'status error';
+        status.textContent = 'Please fill in both fields.';
+        return;
+    }
+
+    btn.disabled       = true;
+    status.className   = 'status loading';
+    status.textContent = 'Saving...';
+
+    try {
+        const res = await fetch('/api/gotchas', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+            body:    JSON.stringify({ issue, workaround })
+        });
+
+        if (res.status === 401) { logout(); return; }
+
+        if (res.ok) {
+            status.className   = 'status success';
+            status.textContent = 'Gotcha added.';
+            document.getElementById('gotcha-form').reset();
+            loadGotchas();
+        } else {
+            status.className   = 'status error';
+            status.textContent = 'Failed to save — please try again.';
+        }
+    } catch {
+        status.className   = 'status error';
+        status.textContent = 'Network error.';
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function loadGotchas() {
+    const list = document.getElementById('gotchas-list');
+    list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">Loading...</p>';
+
+    try {
+        const res     = await fetch('/api/gotchas');
+        const gotchas = await res.json();
+
+        if (gotchas.length === 0) {
+            list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">No gotchas yet.</p>';
+            return;
+        }
+
+        list.innerHTML = '';
+        gotchas.forEach((g, idx) => {
+            const row = document.createElement('div');
+            row.className = 'entry-row';
+            row.innerHTML = `
+                <div class="entry-row-info">
+                    <span class="entry-row-title">${escapeHtml(g.issue)}</span>
+                    <span class="entry-row-meta">${escapeHtml(g.workaround)}</span>
+                </div>
+                <button class="entry-row-delete" onclick="deleteGotcha(${idx}, this)">Delete</button>
+            `;
+            list.appendChild(row);
+        });
+    } catch {
+        list.innerHTML = '<p style="color:#991b1b;font-size:0.85rem;">Failed to load gotchas.</p>';
+    }
+}
+
+async function deleteGotcha(idx, btn) {
+    if (!confirm('Delete this gotcha?')) return;
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/gotchas/${idx}`, {
+            method:  'DELETE',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+
+        if (res.status === 401) { logout(); return; }
+        if (res.ok) loadGotchas();
+        else { alert('Failed to delete.'); btn.disabled = false; }
+    } catch {
+        alert('Network error.');
+        btn.disabled = false;
+    }
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('date').value = new Date().toISOString().split('T')[0];
     document.getElementById('login-form').addEventListener('submit', login);
     document.getElementById('entry-form').addEventListener('submit', submitEntry);
+    document.getElementById('gotcha-form').addEventListener('submit', submitGotcha);
 
     if (authToken) {
         showAdminForm();
