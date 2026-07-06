@@ -16,7 +16,6 @@ header {
 }
 
 .header-inner {
-    max-width: 1200px;
     margin: 0 auto;
     display: flex;
     align-items: center;
@@ -140,7 +139,6 @@ header p {
 }
 
 .filters-inner {
-    max-width: 1200px;
     margin: 0 auto;
     display: flex;
     gap: 0.6rem;
@@ -190,7 +188,6 @@ header p {
 
 /* ── Main ── */
 main {
-    max-width: 1200px;
     margin: 0 auto;
     padding: 1.5rem 2.5rem 3rem;
 }
