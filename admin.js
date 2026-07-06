@@ -13,7 +13,8 @@ function showAdminForm() {
     document.getElementById('login-section').classList.add('hidden');
     document.getElementById('admin-form-section').classList.remove('hidden');
     document.getElementById('admin-sidebar').classList.add('visible');
-    restoreSectionStates();
+    const stored = localStorage.getItem('poc-admin-active-section');
+    navigateTo(SECTIONS.includes(stored) ? stored : 'section-add');
     loadEntries();
     loadRequests();
     loadSubscribers();
@@ -673,38 +674,19 @@ async function deleteGotcha(idx, btn) {
     }
 }
 
-// ── Section collapse & sidebar ────────────────────────────────────────────
-function toggleSection(id) {
-    const card   = document.getElementById(id);
-    const body   = card.querySelector('.section-body');
-    const toggle = card.querySelector('.section-toggle');
-    const nowCollapsed = body.classList.toggle('collapsed');
-    toggle.classList.toggle('collapsed', nowCollapsed);
+// ── Section navigation ────────────────────────────────────────────────────
+const SECTIONS = ['section-add', 'section-entries', 'section-requests', 'section-subscribers', 'section-issues'];
 
-    const state = JSON.parse(localStorage.getItem('poc-admin-sections') || '{}');
-    state[id]   = nowCollapsed ? 'collapsed' : 'expanded';
-    localStorage.setItem('poc-admin-sections', JSON.stringify(state));
-}
-
-function restoreSectionStates() {
-    const state = JSON.parse(localStorage.getItem('poc-admin-sections') || '{}');
-    Object.entries(state).forEach(([id, s]) => {
-        const card = document.getElementById(id);
-        if (!card || s !== 'collapsed') return;
-        card.querySelector('.section-body')?.classList.add('collapsed');
-        card.querySelector('.section-toggle')?.classList.add('collapsed');
-    });
-}
-
-function scrollToSection(id) {
-    const card = document.getElementById(id);
-    if (!card) return;
-    if (card.querySelector('.section-body').classList.contains('collapsed')) toggleSection(id);
-    setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+function navigateTo(id) {
+    SECTIONS.forEach(sid => document.getElementById(sid).classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
 
     document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
     const navEl = document.getElementById('nav-' + id.replace('section-', ''));
     if (navEl) navEl.classList.add('active');
+
+    localStorage.setItem('poc-admin-active-section', id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function updateBadge(id, count, show) {
