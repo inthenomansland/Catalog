@@ -134,6 +134,34 @@ async function notifyNewRequest(r) {
     });
 }
 
+// ── Request approval confirmation to submitter ────────────────────────────
+async function notifyRequestApproved(r) {
+    if (!r.submitterEmail) return;
+    const typeName = r.type === 'bench' ? 'Bench Test' : 'PoC';
+    await sendEmail({
+        to:      r.submitterEmail,
+        subject: `Your ${typeName} Request Has Been Approved — PoC Lab`,
+        text: [
+            `Hi ${r.submitterName || 'there'},`,
+            '',
+            `Your ${typeName} request has been reviewed and approved by the PoC Lab team.`,
+            '',
+            `Job Name:   ${r.jobName   || '—'}`,
+            `Start Date: ${r.dateStart || '—'}`,
+            `End Date:   ${r.dateEnd   || '—'}`,
+            `Persons:    ${r.persons   || '—'}`,
+            '',
+            'If you have any questions or need to make changes, please get in touch with the lab team:',
+            'poc.lab@proav.com',
+            '',
+            'You can view the PoC Lab Dashboard here:',
+            `${SITE_URL}`,
+            '',
+            '— proAV PoC Lab Team',
+        ].join('\n'),
+    });
+}
+
 // ── Known issue admin notification ───────────────────────────────────────
 async function notifyNewKnownIssue(entry) {
     await sendEmail({
@@ -419,12 +447,13 @@ app.get('/api/requests', requireAuth, (req, res) => {
 });
 
 // ── Requests (admin approve) ──────────────────────────────────────────────
-app.put('/api/requests/:index/approve', requireAuth, (req, res) => {
+app.put('/api/requests/:index/approve', requireAuth, async (req, res) => {
     const idx      = parseInt(req.params.index, 10);
     const requests = readRequests();
     if (isNaN(idx) || idx < 0 || idx >= requests.length) return res.status(404).json({ error: 'Not found' });
     requests[idx].status = 'approved';
     writeRequests(requests);
+    notifyRequestApproved(requests[idx]).catch(() => {});
     res.json(requests[idx]);
 });
 
