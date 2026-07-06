@@ -7,10 +7,12 @@
     <link rel="stylesheet" href="style.css">
     <style>
         /* ── Base ───────────────────────────────────────── */
+        html { height: 100%; }
+
         body {
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
+            min-height: 100%;
             background: #eaedf1;
         }
 
@@ -19,6 +21,7 @@
         .admin-layout {
             flex: 1;
             display: flex;
+            min-height: 0;
         }
 
         /* ── Sidebar ─────────────────────────────────────── */
@@ -28,7 +31,6 @@
             background: #13151b;
             display: none;
             flex-direction: column;
-            min-height: 100%;
         }
 
         #admin-sidebar.visible { display: flex; }
@@ -167,7 +169,6 @@
 
         /* ── Section panels ──────────────────────────────── */
         .section-panel {
-            max-width: 820px;
             background: white;
             border-radius: 14px;
             padding: 2rem 2.25rem 2.5rem;
