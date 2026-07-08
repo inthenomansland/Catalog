@@ -403,31 +403,68 @@ main {
 }
 
 .card {
+    position: relative;
     background: white;
     border: 1px solid #e1e4e8;
     border-radius: 10px;
-    padding: 1.25rem 1.35rem;
+    padding: 1.35rem;
     display: flex;
     flex-direction: column;
     gap: 0.8rem;
-    transition: box-shadow 0.15s, transform 0.1s;
+    overflow: hidden;
+    transition: box-shadow 0.2s cubic-bezier(0.4,0,0.2,1), transform 0.2s cubic-bezier(0.4,0,0.2,1), border-color 0.2s;
 }
+
+/* Coloured accent bar across the top, tinted per test type */
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: #cbd5e1;
+}
+
+.card--kit::before     { background: #2563eb; }
+.card--program::before { background: var(--brand-green); }
+.card--concept::before { background: #7c3aed; }
 
 .card:hover {
-    box-shadow: 0 6px 18px rgba(0,0,0,0.09);
-    transform: translateY(-1px);
+    box-shadow: 0 14px 30px rgba(0,0,0,0.13);
+    transform: translateY(-4px);
+    border-color: #d1d5db;
 }
 
-.card-header {
+.card-topline {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.75rem;
+    margin-top: 0.15rem;
 }
 
+/* Tinted icon medallion, colour matched to the type badge */
+.card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+.card-icon svg { width: 21px; height: 21px; }
+
+.card:hover .card-icon { transform: scale(1.08) rotate(-3deg); }
+
+.card--kit     .card-icon { background: #dbeafe; color: #1d4ed8; }
+.card--program .card-icon { background: #d1fae5; color: #065f46; }
+.card--concept .card-icon { background: #ede9fe; color: #5b21b6; }
+
 .card-title {
-    font-size: 0.975rem;
-    font-weight: 600;
+    font-size: 1.02rem;
+    font-weight: 700;
     color: #0f1117;
     line-height: 1.4;
 }

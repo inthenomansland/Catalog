@@ -76,9 +76,19 @@ function formatDate(dateStr) {
 }
 
 // ── Card ──────────────────────────────────────────────────────────────────
+function typeIcon(type) {
+    const icons = {
+        Kit: '<path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+        Program: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
+        Concept: '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/>'
+    };
+    const paths = icons[type] || icons.Kit;
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+}
+
 function createCard(entry) {
     const card = document.createElement('div');
-    card.className = 'card';
+    card.className = `card card--${(entry.testType || 'kit').toLowerCase()}`;
 
     const frontBtn  = entry.frontPageDoc
         ? `<a href="${entry.frontPageDoc}" target="_blank" rel="noopener" class="btn btn-secondary">Front Page</a>` : '';
@@ -86,10 +96,11 @@ function createCard(entry) {
         ? `<a href="${entry.fullReport}"   target="_blank" rel="noopener" class="btn btn-primary">Full Report</a>`  : '';
 
     card.innerHTML = `
-        <div class="card-header">
-            <div class="card-title">${entry.title}</div>
+        <div class="card-topline">
+            <div class="card-icon">${typeIcon(entry.testType)}</div>
             <span class="badge ${badgeClass(entry.testType)}">${entry.testType}</span>
         </div>
+        <div class="card-title">${entry.title}</div>
         <div class="card-meta">
             <span class="meta-item"><strong>Manufacturer</strong> ${entry.manufacturer || '—'}</span>
             <span class="meta-item"><strong>Product</strong> ${entry.productName || '—'}</span>
