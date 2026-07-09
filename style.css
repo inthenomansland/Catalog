@@ -484,6 +484,30 @@ main {
 
 .card:hover .card-logo { transform: scale(1.06); }
 
+/* Multiple manufacturers on one report — a row of smaller tiles */
+.card-logo-group {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.card-logo--sm {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+}
+
+.card-logo--sm .card-logo-mono { font-size: 0.72rem; }
+.card-logo--sm img { padding: 4px; }
+
+.card-logo--more {
+    background: #f1f5f9;
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
 .card-title {
     font-size: 1.02rem;
     font-weight: 700;

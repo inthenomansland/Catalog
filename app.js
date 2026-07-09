@@ -97,14 +97,40 @@ function mfrHue(name) {
     return h % 360;
 }
 
-function mfrLogo(name) {
-    if (!name) return '';
+// Splits a manufacturer field into individual names when a report covers
+// more than one, e.g. "Sony, Blackmagic Design" or "Cisco & Poly".
+function splitManufacturers(name) {
+    return (name || '')
+        .split(/\s*(?:,|\/|&|\+|\band\b)\s*/i)
+        .map(s => s.trim())
+        .filter(Boolean);
+}
+
+const MAX_LOGO_TILES = 3;
+
+function mfrLogoTile(name, compact) {
     const hue = mfrHue(name);
     return `
-        <div class="card-logo" title="${name}" style="--mono-bg:hsl(${hue},58%,94%);--mono-fg:hsl(${hue},42%,32%);">
+        <div class="card-logo${compact ? ' card-logo--sm' : ''}" title="${name}" style="--mono-bg:hsl(${hue},58%,94%);--mono-fg:hsl(${hue},42%,32%);">
             <span class="card-logo-mono">${mfrMonogram(name)}</span>
             <img src="logos/${mfrSlug(name)}.png" alt="${name} logo" loading="lazy" onerror="this.style.display='none'">
         </div>`;
+}
+
+function mfrLogo(rawName) {
+    if (!rawName) return '';
+    const names = splitManufacturers(rawName);
+    if (names.length <= 1) return mfrLogoTile(rawName, false);
+
+    const compact = names.length > 1;
+    const shown    = names.slice(0, MAX_LOGO_TILES);
+    const overflow = names.length - shown.length;
+    const tiles    = shown.map(n => mfrLogoTile(n, compact)).join('');
+    const more     = overflow > 0
+        ? `<div class="card-logo card-logo--sm card-logo--more" title="${names.slice(MAX_LOGO_TILES).join(', ')}">+${overflow}</div>`
+        : '';
+
+    return `<div class="card-logo-group">${tiles}${more}</div>`;
 }
 
 function createCard(entry) {
