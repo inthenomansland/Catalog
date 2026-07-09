@@ -448,12 +448,13 @@ main {
 }
 
 /* Manufacturer logo tile — falls back to a coloured monogram when no
-   logo file exists at logos/<slug>.png */
+   logo file exists at logos/<slug>.png. Wide rectangle (not square) so
+   typical wordmark logos (Sennheiser, Shure, etc.) aren't shrunk tiny. */
 .card-logo {
     position: relative;
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
+    width: 76px;
+    height: 42px;
+    border-radius: 9px;
     flex-shrink: 0;
     overflow: hidden;
     background: var(--mono-bg, #eef2f7);
