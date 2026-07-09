@@ -261,6 +261,35 @@ document.getElementById('clear-filters').addEventListener('click', () => {
 
 loadData();
 
+// ── Mobile nav drawer & filter toggle ─────────────────────────────────────
+function toggleNavDrawer() {
+    const drawer   = document.getElementById('header-actions');
+    const backdrop = document.getElementById('drawer-backdrop');
+    const open     = drawer.classList.toggle('open');
+    backdrop.classList.toggle('visible', open);
+    document.body.style.overflow = open ? 'hidden' : '';
+}
+
+function closeNavDrawer() {
+    document.getElementById('header-actions').classList.remove('open');
+    document.getElementById('drawer-backdrop').classList.remove('visible');
+    document.body.style.overflow = '';
+}
+
+function toggleFilters() {
+    document.getElementById('filters-bar').classList.toggle('open');
+}
+
+// Close the drawer whenever one of its action buttons is tapped.
+// Only collapse it visually — the modal that's opening owns the scroll lock,
+// so we must not reset body.overflow here.
+document.getElementById('header-actions').addEventListener('click', (e) => {
+    if (e.target.closest('.header-btn')) {
+        document.getElementById('header-actions').classList.remove('open');
+        document.getElementById('drawer-backdrop').classList.remove('visible');
+    }
+});
+
 // ── Placeholder buttons ───────────────────────────────────────────────────
 function comingSoon(btn) {
     const original = btn.textContent;
@@ -627,6 +656,7 @@ document.addEventListener('keydown', (e) => {
         document.getElementById('poc-modal-overlay').classList.add('hidden');
         document.getElementById('gotcha-modal-overlay').classList.add('hidden');
         document.getElementById('subscribe-modal-overlay').classList.add('hidden');
+        closeNavDrawer();
         document.body.style.overflow = '';
     }
 });
