@@ -80,8 +80,13 @@ function requireAuth(req, res, next) {
     }
 }
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 // ── Shared email helper ───────────────────────────────────────────────────
-async function sendEmail({ to, subject, text }) {
+async function sendEmail({ to, subject, text, html }) {
     const user = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
     if (!user || !pass) return;
@@ -97,6 +102,7 @@ async function sendEmail({ to, subject, text }) {
         await transporter.sendMail({
             from:    `"PoC Lab Notifications" <${process.env.SMTP_FROM || user}>`,
             to, subject, text,
+            ...(html ? { html } : {}),
         });
         console.log(`Email sent to ${to}: ${subject}`);
     } catch (err) {
@@ -146,10 +152,106 @@ function addWorkingDays(dateStr, days) {
     return d.toISOString().split('T')[0];
 }
 
+// Builds the branded HTML version of the approval email. Table-based layout
+// with inline styles throughout — this is what keeps it rendering correctly
+// in Outlook desktop, which ignores <style> blocks and most modern CSS.
+function renderApprovalEmailHtml(r, typeName, dueDate) {
+    const name     = escapeHtml(r.submitterName || 'there');
+    const jobName  = escapeHtml(r.jobName   || '—');
+    const dateStart= escapeHtml(r.dateStart || '—');
+    const dateEnd  = escapeHtml(r.dateEnd   || '—');
+    const persons  = escapeHtml(r.persons   || '—');
+
+    const detailRow = (label, value) => `
+        <tr>
+            <td style="padding:7px 0;font:600 12px/1.4 Segoe UI,Arial,sans-serif;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;width:120px;vertical-align:top;">${label}</td>
+            <td style="padding:7px 0;font:400 14px/1.5 Segoe UI,Arial,sans-serif;color:#14171b;">${value}</td>
+        </tr>`;
+
+    const accessCodeBlock = r.accessCode ? `
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+            <tr>
+                <td style="background:#eef7e6;border-left:4px solid #6DC52D;border-radius:6px;padding:18px 20px;">
+                    <p style="margin:0 0 6px;font:700 11px/1.4 Segoe UI,Arial,sans-serif;color:#2d6b0a;text-transform:uppercase;letter-spacing:.06em;">Your access code</p>
+                    <p style="margin:0 0 8px;font:700 26px/1.2 'Courier New',Consolas,monospace;color:#0d0d0d;letter-spacing:.06em;">${escapeHtml(r.accessCode)}</p>
+                    <p style="margin:0;font:400 13px/1.5 Segoe UI,Arial,sans-serif;color:#3f5c2a;">Please keep this safe — you'll need it to access the lab for your session.</p>
+                </td>
+            </tr>
+        </table>` : '';
+
+    const reportDueBlock = `
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+            <tr>
+                <td style="background:#eaf3ff;border-left:4px solid #4d7fc4;border-radius:6px;padding:18px 20px;">
+                    <p style="margin:0 0 6px;font:700 11px/1.4 Segoe UI,Arial,sans-serif;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;">Report due</p>
+                    <p style="margin:0 0 8px;font:400 14px/1.6 Segoe UI,Arial,sans-serif;color:#1e293b;">
+                        A short report covering the outcome of your session is due within
+                        <strong>5 working days</strong> of your session end date.
+                        ${dueDate ? `That means your report is due by <strong>${escapeHtml(dueDate)}</strong>.` : ''}
+                    </p>
+                    <a href="${SITE_URL}" style="display:inline-block;background:#0d0d0d;color:#ffffff;text-decoration:none;font:600 13px/1 Segoe UI,Arial,sans-serif;padding:10px 18px;border-radius:6px;">Submit Report on the Dashboard</a>
+                </td>
+            </tr>
+        </table>`;
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+</head>
+<body style="margin:0;padding:0;background:#f4f6f2;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f2;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border:1px solid #dde2d8;border-radius:10px;overflow:hidden;">
+
+    <tr><td style="background:#0d0d0d;padding:22px 28px;border-bottom:4px solid #6DC52D;">
+        <span style="font:700 18px/1 Segoe UI,Arial,sans-serif;color:#ffffff;">pro<span style="color:#6DC52D;">AV</span></span>
+        <span style="font:400 12px/1 Segoe UI,Arial,sans-serif;color:#9aa2a0;margin-left:10px;">PoC Lab Dashboard</span>
+    </td></tr>
+
+    <tr><td style="padding:28px;">
+        <p style="margin:0 0 4px;font:700 20px/1.3 Segoe UI,Arial,sans-serif;color:#0d0d0d;">Request approved</p>
+        <p style="margin:0 0 22px;font:400 14px/1.6 Segoe UI,Arial,sans-serif;color:#667085;">
+            Hi ${name}, your ${escapeHtml(typeName)} request has been reviewed and approved by the PoC Lab team.
+        </p>
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eceff0;border-bottom:1px solid #eceff0;margin-bottom:4px;">
+            ${detailRow('Job Name',   jobName)}
+            ${detailRow('Start Date', dateStart)}
+            ${detailRow('End Date',   dateEnd)}
+            ${detailRow('Persons',    persons)}
+        </table>
+
+        ${accessCodeBlock}
+        ${accessCodeBlock ? '' : '<div style="height:24px;"></div>'}
+        ${reportDueBlock}
+
+        <p style="margin:0 0 4px;font:400 13px/1.6 Segoe UI,Arial,sans-serif;color:#667085;">
+            Questions, or need to make changes? Get in touch with the lab team:
+            <a href="mailto:poc.lab@proav.com" style="color:#4c9a1a;">poc.lab@proav.com</a>
+        </p>
+    </td></tr>
+
+    <tr><td style="padding:16px 28px;background:#f7f8f6;border-top:1px solid #eceff0;">
+        <p style="margin:0;font:400 12px/1.6 Segoe UI,Arial,sans-serif;color:#9aa2a0;">
+            proAV PoC Lab Team · <a href="${SITE_URL}" style="color:#9aa2a0;">${SITE_URL.replace(/^https?:\/\//, '')}</a>
+        </p>
+    </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
 // ── Request approval confirmation to submitter ────────────────────────────
 async function notifyRequestApproved(r) {
     if (!r.submitterEmail) return;
     const typeName = r.type === 'bench' ? 'Bench Test' : 'PoC';
+    const dueDate  = r.dateEnd ? addWorkingDays(r.dateEnd, 5) : null;
 
     const accessCodeLines = r.accessCode
         ? [
@@ -162,9 +264,7 @@ async function notifyRequestApproved(r) {
     const reportDueLines = [
         '',
         'A short report covering the outcome of your session is due within 5 working days of your session end date.',
-        r.dateEnd
-            ? `For this session, that means your report is due by ${addWorkingDays(r.dateEnd, 5)}.`
-            : null,
+        dueDate ? `For this session, that means your report is due by ${dueDate}.` : null,
         'You can submit it via the "Submit Report" button on the PoC Lab Dashboard.',
     ].filter(Boolean);
 
@@ -191,6 +291,7 @@ async function notifyRequestApproved(r) {
             '',
             '— proAV PoC Lab Team',
         ].join('\n'),
+        html: renderApprovalEmailHtml(r, typeName, dueDate),
     });
 }
 
