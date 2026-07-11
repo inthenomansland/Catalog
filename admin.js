@@ -399,11 +399,13 @@ function buildRequestRow(r, isPending) {
             </div>
             <div class="entry-row-actions">
                 <button class="entry-row-edit" onclick="toggleRequestDetail(${r._idx})">Details</button>
-                ${isPending ? `<button class="entry-row-approve" onclick="approveRequest(${r._idx}, this)">Approve</button>
+                ${isPending ? `<input type="text" id="request-accesscode-${r._idx}" placeholder="Access code (optional)" style="width:150px;padding:0.3rem 0.55rem;font-size:0.78rem;border:1px solid #d1d5db;border-radius:5px;">
+                <button class="entry-row-approve" onclick="approveRequest(${r._idx}, this)">Approve</button>
                 <button class="entry-row-delete"  onclick="deleteRequest(${r._idx}, this)">Decline</button>` : `<button class="entry-row-delete" onclick="deleteRequest(${r._idx}, this)">Delete</button>`}
             </div>
         </div>
         <div id="request-detail-${r._idx}" class="hidden" style="background:#f8fafc;border:1px solid #e1e4e8;border-left:3px solid #6DC52D;border-radius:8px;padding:1.1rem;margin:0.25rem 0 0.5rem;">
+            ${r.accessCode      ? `<p style="font-size:0.82rem;margin-bottom:0.6rem;"><strong>Access Code Sent:</strong> ${escapeHtml(r.accessCode)}</p>` : ''}
             ${r.submitterEmail ? `<p style="font-size:0.82rem;margin-bottom:0.6rem;"><strong>Email:</strong> ${escapeHtml(r.submitterEmail)}</p>` : ''}
             ${r.persons        ? `<p style="font-size:0.82rem;margin-bottom:0.75rem;"><strong>Persons:</strong> ${escapeHtml(r.persons)}</p>` : ''}
             ${r.scope    ? `<div style="margin-bottom:0.75rem;"><p style="font-size:0.75rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.25rem;">Scope</p><p style="font-size:0.82rem;line-height:1.6;white-space:pre-wrap;">${escapeHtml(r.scope)}</p></div>` : ''}
@@ -423,10 +425,13 @@ function toggleRequestDetail(idx) {
 
 async function approveRequest(idx, btn) {
     btn.disabled = true;
+    const codeInput  = document.getElementById(`request-accesscode-${idx}`);
+    const accessCode = codeInput ? codeInput.value.trim() : '';
     try {
         const res = await fetch(`/api/requests/${idx}/approve`, {
             method:  'PUT',
-            headers: { 'Authorization': `Bearer ${authToken}` }
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+            body:    JSON.stringify({ accessCode })
         });
         if (res.status === 401) { logout(); return; }
         if (res.ok) loadRequests();

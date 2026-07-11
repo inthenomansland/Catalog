@@ -134,10 +134,40 @@ async function notifyNewRequest(r) {
     });
 }
 
+// Adds N working days (Mon–Fri) to a YYYY-MM-DD date string.
+function addWorkingDays(dateStr, days) {
+    const d = new Date(`${dateStr}T00:00:00Z`);
+    let added = 0;
+    while (added < days) {
+        d.setUTCDate(d.getUTCDate() + 1);
+        const day = d.getUTCDay();
+        if (day !== 0 && day !== 6) added++;
+    }
+    return d.toISOString().split('T')[0];
+}
+
 // ── Request approval confirmation to submitter ────────────────────────────
 async function notifyRequestApproved(r) {
     if (!r.submitterEmail) return;
     const typeName = r.type === 'bench' ? 'Bench Test' : 'PoC';
+
+    const accessCodeLines = r.accessCode
+        ? [
+            '',
+            `Your PoC Lab access code: ${r.accessCode}`,
+            'Please keep this safe — you\'ll need it to access the lab for your session.',
+          ]
+        : [];
+
+    const reportDueLines = [
+        '',
+        'A short report covering the outcome of your session is due within 5 working days of your session end date.',
+        r.dateEnd
+            ? `For this session, that means your report is due by ${addWorkingDays(r.dateEnd, 5)}.`
+            : null,
+        'You can submit it via the "Submit Report" button on the PoC Lab Dashboard.',
+    ].filter(Boolean);
+
     await sendEmail({
         to:      r.submitterEmail,
         subject: `Your ${typeName} Request Has Been Approved — PoC Lab`,
@@ -150,6 +180,8 @@ async function notifyRequestApproved(r) {
             `Start Date: ${r.dateStart || '—'}`,
             `End Date:   ${r.dateEnd   || '—'}`,
             `Persons:    ${r.persons   || '—'}`,
+            ...accessCodeLines,
+            ...reportDueLines,
             '',
             'If you have any questions or need to make changes, please get in touch with the lab team:',
             'poc.lab@proav.com',
@@ -451,7 +483,9 @@ app.put('/api/requests/:index/approve', requireAuth, async (req, res) => {
     const idx      = parseInt(req.params.index, 10);
     const requests = readRequests();
     if (isNaN(idx) || idx < 0 || idx >= requests.length) return res.status(404).json({ error: 'Not found' });
-    requests[idx].status = 'approved';
+    const accessCode = req.body && req.body.accessCode ? String(req.body.accessCode).trim() : '';
+    requests[idx].status     = 'approved';
+    requests[idx].accessCode = accessCode || null;
     writeRequests(requests);
     notifyRequestApproved(requests[idx]).catch(() => {});
     res.json(requests[idx]);
