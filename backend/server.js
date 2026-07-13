@@ -98,11 +98,21 @@ async function sendEmail({ to, subject, text, html }) {
         auth:   { user, pass },
     });
 
+    // HTML emails reference the logo via cid:proav-logo-mark rather than a
+    // hosted URL — Outlook (and most clients) block remote images by default,
+    // but treat CID-embedded attachments as part of the message itself, so
+    // the logo shows immediately with no "download images" prompt.
+    const attachments = html ? [{
+        filename: 'logo.png',
+        path:     path.join(__dirname, 'public', 'logo-email.png'),
+        cid:      'proav-logo-mark',
+    }] : [];
+
     try {
         await transporter.sendMail({
             from:    `"PoC Lab Notifications" <${process.env.SMTP_FROM || user}>`,
             to, subject, text,
-            ...(html ? { html } : {}),
+            ...(html ? { html, attachments } : {}),
         });
         console.log(`Email sent to ${to}: ${subject}`);
     } catch (err) {
@@ -171,7 +181,7 @@ function emailShell({ heading, intro, bodyHtml, footerHtml }) {
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border:1px solid #dde2d8;border-radius:10px;overflow:hidden;">
 
     <tr><td style="background:#0d0d0d;padding:22px 28px;border-bottom:4px solid #6DC52D;">
-        <img src="${SITE_URL}/logo-email.png" alt="proAV" width="108" height="26" style="display:inline-block;vertical-align:middle;height:26px;width:108px;border:0;">
+        <img src="cid:proav-logo-mark" alt="proAV" width="108" height="26" style="display:inline-block;vertical-align:middle;height:26px;width:108px;border:0;">
         <span style="font:400 12px/1 Segoe UI,Arial,sans-serif;color:#9aa2a0;margin-left:10px;vertical-align:middle;">PoC Lab Dashboard</span>
     </td></tr>
 
