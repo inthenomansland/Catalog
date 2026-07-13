@@ -79,8 +79,18 @@ function formatDate(dateStr) {
 // Manufacturer name -> logo filename slug (e.g. "Blackmagic Design" -> "blackmagicdesign").
 // Drop a matching PNG into /logos (e.g. logos/sony.png) and it appears automatically;
 // with no file, a coloured monogram tile is shown instead.
+//
+// Some manufacturers are known by more than one name in reports (rebrands,
+// product-line names used interchangeably with the company name). Map the
+// alternate spelling's slug to the canonical logo file's slug here so both
+// resolve to the same image.
+const MFR_SLUG_ALIASES = {
+    qsys: 'qsc', // "Q-SYS" is QSC's product line — same company, same logo
+};
+
 function mfrSlug(name) {
-    return (name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const slug = (name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    return MFR_SLUG_ALIASES[slug] || slug;
 }
 
 function mfrMonogram(name) {
