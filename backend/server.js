@@ -171,7 +171,18 @@ function emailShell({ heading, intro, bodyHtml, footerHtml }) {
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border:1px solid #dde2d8;border-radius:10px;overflow:hidden;">
 
     <tr><td style="background:#0d0d0d;padding:22px 28px;border-bottom:4px solid #6DC52D;">
-        <span style="font:700 18px/1 Segoe UI,Arial,sans-serif;color:#ffffff;">pro<span style="color:#6DC52D;">AV</span></span>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="display:inline-table;vertical-align:middle;">
+            <tr>
+                <td style="font:700 20px/1 Segoe UI,Arial,sans-serif;color:#ffffff;letter-spacing:-0.01em;padding:0 4px 0 0;vertical-align:middle;">pro</td>
+                <td style="width:10px;padding:0 1px 0 0;vertical-align:middle;line-height:0;">
+                    <div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:15px solid #79b829;"></div>
+                </td>
+                <td style="width:10px;padding:0;vertical-align:middle;line-height:0;">
+                    <div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:15px solid #79b829;"></div>
+                </td>
+                <td style="font:400 9px/1 Segoe UI,Arial,sans-serif;color:#6b7d5c;vertical-align:top;padding:0 0 0 2px;">&reg;</td>
+            </tr>
+        </table>
         <span style="font:400 12px/1 Segoe UI,Arial,sans-serif;color:#9aa2a0;margin-left:10px;">PoC Lab Dashboard</span>
     </td></tr>
 
