@@ -41,6 +41,18 @@ header {
     flex-shrink: 0;
 }
 
+/* Separates the passive Get Notified from the transactional request buttons —
+   same group, different category. Becomes a horizontal rule in the mobile
+   drawer, where the row turns into a column. */
+.header-divider {
+    width: 1px;
+    height: 1.4rem;
+    align-self: center;
+    background: rgba(255,255,255,0.18);
+    margin: 0 0.25rem;
+    flex-shrink: 0;
+}
+
 /* Mobile-only controls — hidden on desktop */
 .mobile-icon-btn { display: none; }
 .drawer-only { display: none; }
@@ -50,34 +62,6 @@ header {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-}
-
-.bell-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0.35rem 0.5rem;
-    border-radius: 8px;
-    color: rgba(255,255,255,0.45);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.2rem;
-    transition: color 0.15s, background 0.15s;
-}
-
-.bell-btn:hover {
-    color: var(--brand-green);
-    background: rgba(255,255,255,0.08);
-}
-
-.bell-label {
-    font-size: 0.58rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    line-height: 1;
 }
 
 .header-btn {
@@ -117,6 +101,22 @@ header {
 .header-btn--filled:hover {
     background: var(--brand-green-hover);
     border-color: var(--brand-green-hover);
+}
+
+/* Green-tinted outline — same recipe as --warning but in brand green. Sits a
+   step above the plain outlines without competing with the solid --filled
+   primary, so Get Notified reads as inviting rather than as a second CTA.
+   Hover fills in solid green to pull the click. */
+.header-btn--accent {
+    background: rgba(109,197,45,0.12);
+    color: var(--brand-green);
+    border-color: rgba(109,197,45,0.5);
+}
+
+.header-btn--accent:hover {
+    background: var(--brand-green);
+    border-color: var(--brand-green);
+    color: var(--brand-black);
 }
 
 .header-btn--warning {
@@ -843,7 +843,6 @@ main {
         min-width: 0;
     }
     .header-text p { display: none; }            /* hide subtitle for a clean bar */
-    .header-brand .bell-btn { display: none; }   /* Get Notified moves into the drawer */
     .header-logo { height: 1.9rem; }
 
     /* Nav drawer — slides in from the left */
@@ -868,6 +867,13 @@ main {
     .header-actions.open { transform: translateX(0); }
 
     .drawer-only { display: inline-flex; }
+
+    .header-divider {
+        width: auto;
+        height: 1px;
+        align-self: stretch;
+        margin: 0.35rem 0;
+    }
 
     .header-btn {
         width: 100%;
