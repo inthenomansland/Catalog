@@ -559,30 +559,87 @@ async function submitPoCRequest(event) {
 }
 
 // ── Unsubscribe handler ───────────────────────────────────────────────────
+// The link in notification emails lands here. Loading the page only *offers* to
+// unsubscribe — the removal itself needs a deliberate click. Mail scanners,
+// Outlook/Teams link previews and browser prefetch all fetch these URLs on
+// their own, and used to silently remove people who never clicked anything.
+let pendingUnsubscribeToken = null;
+
+function showUnsubscribeBanner(kind, text) {
+    const banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;top:1rem;left:50%;transform:translateX(-50%);padding:0.75rem 1.5rem;border-radius:8px;font-size:0.9rem;font-weight:500;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);';
+    banner.style.background = kind === 'ok' ? '#d1fae5' : '#fee2e2';
+    banner.style.color      = kind === 'ok' ? '#065f46' : '#991b1b';
+    banner.textContent      = text;
+    document.body.appendChild(banner);
+    setTimeout(() => banner.remove(), 5000);
+}
+
+function closeUnsubscribeModal(event) {
+    if (event && event.target !== document.getElementById('unsubscribe-modal-overlay')) return;
+    document.getElementById('unsubscribe-modal-overlay').classList.add('hidden');
+    document.body.style.overflow = '';
+    pendingUnsubscribeToken = null;
+}
+
+async function confirmUnsubscribe() {
+    if (!pendingUnsubscribeToken) return;
+    const btn = document.getElementById('unsubscribe-confirm-btn');
+    const msg = document.getElementById('unsubscribe-msg');
+    btn.disabled = true;
+
+    try {
+        const res = await fetch('/api/unsubscribe', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ token: pendingUnsubscribeToken }),
+        });
+
+        if (res.ok) {
+            pendingUnsubscribeToken = null;
+            msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;margin-bottom:1rem;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;';
+            msg.textContent   = "You've been unsubscribed. You won't receive any further notification emails.";
+            setTimeout(() => {
+                document.getElementById('unsubscribe-modal-overlay').classList.add('hidden');
+                document.body.style.overflow = '';
+                msg.style.display = 'none';
+                btn.disabled = false;
+            }, 3000);
+        } else {
+            msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;margin-bottom:1rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
+            msg.textContent   = 'Could not unsubscribe — please try again.';
+            btn.disabled = false;
+        }
+    } catch {
+        msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;margin-bottom:1rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
+        msg.textContent   = 'Network error. Please try again.';
+        btn.disabled = false;
+    }
+}
+
 (async function checkUnsubscribe() {
     const token = new URLSearchParams(window.location.search).get('unsubscribe');
     if (!token) return;
-    const banner = document.createElement('div');
-    banner.style.cssText = 'position:fixed;top:1rem;left:50%;transform:translateX(-50%);padding:0.75rem 1.5rem;border-radius:8px;font-size:0.9rem;font-weight:500;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);';
-    try {
-        const res = await fetch(`/api/unsubscribe?token=${encodeURIComponent(token)}`);
-        if (res.ok) {
-            banner.style.background = '#d1fae5';
-            banner.style.color      = '#065f46';
-            banner.textContent      = 'You have been unsubscribed successfully.';
-        } else {
-            banner.style.background = '#fee2e2';
-            banner.style.color      = '#991b1b';
-            banner.textContent      = 'Unsubscribe link not found — you may already be unsubscribed.';
-        }
-    } catch {
-        banner.style.background = '#fee2e2';
-        banner.style.color      = '#991b1b';
-        banner.textContent      = 'Network error — please try again.';
-    }
-    document.body.appendChild(banner);
-    setTimeout(() => banner.remove(), 5000);
     window.history.replaceState({}, '', window.location.pathname);
+
+    try {
+        const res = await fetch(`/api/unsubscribe/check?token=${encodeURIComponent(token)}`);
+        if (!res.ok) {
+            showUnsubscribeBanner('error', 'Unsubscribe link not recognised — you may already be unsubscribed.');
+            return;
+        }
+        const info = await res.json();
+        if (info.unsubscribed) {
+            showUnsubscribeBanner('ok', `${info.email} is already unsubscribed.`);
+            return;
+        }
+        pendingUnsubscribeToken = token;
+        document.getElementById('unsubscribe-email').textContent = info.email;
+        document.getElementById('unsubscribe-modal-overlay').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    } catch {
+        showUnsubscribeBanner('error', 'Network error — please try again.');
+    }
 })();
 
 // ── Get Notified Modal ────────────────────────────────────────────────────

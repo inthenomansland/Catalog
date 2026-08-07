@@ -405,6 +405,32 @@
         </div>
     </div>
 
+    <!-- Unsubscribe Confirmation Modal -->
+    <div id="unsubscribe-modal-overlay" class="modal-overlay hidden" onclick="closeUnsubscribeModal(event)">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <h2>Unsubscribe</h2>
+                    <p>Confirm you'd like to stop receiving PoC Lab notification emails.</p>
+                </div>
+                <button class="modal-close" onclick="closeUnsubscribeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="unsubscribe-msg" style="display:none;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;margin-bottom:1rem;"></div>
+                <p style="font-size:0.9rem;color:#374151;margin:0 0 0.5rem;">
+                    Stop sending PoC Lab notifications to <strong id="unsubscribe-email"></strong>?
+                </p>
+                <p style="font-size:0.78rem;color:#9ca3af;margin:0;">
+                    You can sign up again at any time using the "Get Notified" button on the dashboard.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn-cancel" onclick="closeUnsubscribeModal()">Keep me subscribed</button>
+                <button type="button" class="modal-btn-submit modal-btn-submit--danger" id="unsubscribe-confirm-btn" onclick="confirmUnsubscribe()">Unsubscribe me</button>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>

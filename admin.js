@@ -480,11 +480,17 @@ async function loadSubscribers() {
 
         const labels = { instant: 'Every new report', weekly: 'Weekly digest', monthly: 'Monthly digest' };
 
-        updateBadge('subscribers-count-badge', subs.length, true);
-        updateBadge('sb-subscribers', subs.length, true);
+        // Unsubscribed people are kept on record but sorted below the active
+        // list, so the badge counts reflect who is actually being emailed.
+        const active = subs.filter(s => !s.unsubscribed);
+        const gone   = subs.filter(s =>  s.unsubscribed);
+
+        updateBadge('subscribers-count-badge', active.length, true);
+        updateBadge('sb-subscribers', active.length, true);
 
         list.innerHTML = '';
-        subs.forEach((sub, idx) => {
+
+        active.forEach(sub => {
             const row = document.createElement('div');
             row.className = 'entry-row';
             row.innerHTML = `
@@ -492,21 +498,43 @@ async function loadSubscribers() {
                     <span class="entry-row-title">${escapeHtml(sub.email)}</span>
                     <span class="entry-row-meta">${labels[sub.frequency] || sub.frequency} &middot; Since ${sub.subscribedDate || '—'}</span>
                 </div>
-                <button class="entry-row-delete" onclick="deleteSubscriber(${idx}, this)">Remove</button>
+                <button class="entry-row-delete" onclick="deleteSubscriber('${escapeHtml(sub.token)}', this)">Remove</button>
             `;
             list.appendChild(row);
         });
+
+        if (gone.length) {
+            const heading = document.createElement('p');
+            heading.style.cssText = 'margin:1.5rem 0 0.5rem;font-size:0.8rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;';
+            heading.textContent = `Unsubscribed (${gone.length})`;
+            list.appendChild(heading);
+
+            gone.forEach(sub => {
+                const when = sub.unsubscribedDate ? sub.unsubscribedDate.split('T')[0] : '—';
+                const row  = document.createElement('div');
+                row.className = 'entry-row';
+                row.style.opacity = '0.55';
+                row.innerHTML = `
+                    <div class="entry-row-info">
+                        <span class="entry-row-title">${escapeHtml(sub.email)}</span>
+                        <span class="entry-row-meta">Unsubscribed ${when} &middot; was ${labels[sub.frequency] || sub.frequency}</span>
+                    </div>
+                    <button class="entry-row-delete" onclick="deleteSubscriber('${escapeHtml(sub.token)}', this)">Delete</button>
+                `;
+                list.appendChild(row);
+            });
+        }
     } catch {
         list.innerHTML = '<p style="color:#991b1b;font-size:0.85rem;">Failed to load subscribers.</p>';
     }
 }
 
-async function deleteSubscriber(idx, btn) {
+async function deleteSubscriber(token, btn) {
     if (!confirm('Remove this subscriber?')) return;
     btn.disabled = true;
 
     try {
-        const res = await fetch(`/api/admin/subscribers/${idx}`, {
+        const res = await fetch(`/api/admin/subscribers/${encodeURIComponent(token)}`, {
             method:  'DELETE',
             headers: { 'Authorization': `Bearer ${authToken}` }
         });

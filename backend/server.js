@@ -62,6 +62,11 @@ function readGotchas()          { return JSON.parse(fs.readFileSync(GOTCHAS_FILE
 function writeGotchas(data)     { fs.writeFileSync(GOTCHAS_FILE,      JSON.stringify(data, null, 2), 'utf8'); }
 function readSubscribers()      { return JSON.parse(fs.readFileSync(SUBSCRIBERS_FILE,  'utf8')); }
 function writeSubscribers(data) { fs.writeFileSync(SUBSCRIBERS_FILE,  JSON.stringify(data, null, 2), 'utf8'); }
+
+// Unsubscribing is a soft delete — the record stays in subscribers.json with
+// unsubscribed:true so there is a record of who left and when. Everything that
+// actually sends mail must go through this, never readSubscribers() directly.
+function activeSubscribers()    { return readSubscribers().filter(s => !s.unsubscribed); }
 function readDigestState()      { return JSON.parse(fs.readFileSync(DIGEST_STATE_FILE, 'utf8')); }
 function writeDigestState(data) { fs.writeFileSync(DIGEST_STATE_FILE, JSON.stringify(data, null, 2), 'utf8'); }
 function readRequests()         { return JSON.parse(fs.readFileSync(REQUESTS_FILE,     'utf8')); }
@@ -419,7 +424,7 @@ async function notifyNewKnownIssue(entry) {
 
 // ── Subscriber notifications ──────────────────────────────────────────────
 async function notifyInstantSubscribers(entry) {
-    const subscribers = readSubscribers().filter(s => s.frequency === 'instant');
+    const subscribers = activeSubscribers().filter(s => s.frequency === 'instant');
     for (const sub of subscribers) {
         await sendEmail({
             to:      sub.email,
@@ -446,7 +451,7 @@ async function notifyInstantSubscribers(entry) {
 }
 
 async function sendDigest(frequency) {
-    const subscribers = readSubscribers().filter(s => s.frequency === frequency);
+    const subscribers = activeSubscribers().filter(s => s.frequency === frequency);
     if (subscribers.length === 0) return;
 
     const state    = readDigestState();
@@ -620,27 +625,59 @@ app.post('/api/subscribe', submitLimiter, (req, res) => {
     const subs     = readSubscribers();
     const existing = subs.findIndex(s => s.email === email);
     if (existing !== -1) {
-        subs[existing].frequency = frequency;
+        const sub = subs[existing];
+        sub.frequency = frequency;
+        // Someone who previously unsubscribed is signing up again — clear the
+        // flag and issue a fresh token so the old link can't remove them twice.
+        if (sub.unsubscribed) {
+            delete sub.unsubscribed;
+            delete sub.unsubscribedDate;
+            sub.token          = generateToken();
+            sub.subscribedDate = new Date().toISOString().split('T')[0];
+            console.log(`[subscribe] resubscribed: ${email} (${frequency})`);
+        }
         writeSubscribers(subs);
         return res.json({ message: 'Subscription updated' });
     }
 
     subs.push({ email, frequency, token: generateToken(), subscribedDate: new Date().toISOString().split('T')[0] });
     writeSubscribers(subs);
+    console.log(`[subscribe] new: ${email} (${frequency})`);
     res.status(201).json({ message: 'Subscribed successfully' });
 });
 
-app.get('/api/unsubscribe', (req, res) => {
+// Look up who a token belongs to so the confirmation page can name them.
+// Read-only on purpose: mail scanners, link previewers and browser prefetch all
+// issue GETs against the unsubscribe URL, and a GET must never remove anyone.
+app.get('/api/unsubscribe/check', (req, res) => {
     const { token } = req.query;
     if (!token) return res.status(400).json({ error: 'token required' });
 
-    const subs = readSubscribers();
-    const idx  = subs.findIndex(s => s.token === token);
-    if (idx === -1) return res.status(404).json({ error: 'Token not found' });
+    const sub = readSubscribers().find(s => s.token === token);
+    if (!sub) return res.status(404).json({ error: 'Token not found' });
 
-    subs.splice(idx, 1);
-    writeSubscribers(subs);
-    res.json({ message: 'Unsubscribed successfully' });
+    res.json({ email: sub.email, frequency: sub.frequency, unsubscribed: !!sub.unsubscribed });
+});
+
+// The actual removal — POST only, so it takes a deliberate click by a person.
+// Deliberately not rate limited: the whole office shares one egress IP, and
+// unsubscribing must never fail because a colleague filed a report first.
+// The 32-byte token is unguessable, so there is nothing to brute force.
+app.post('/api/unsubscribe', (req, res) => {
+    const { token } = req.body || {};
+    if (!token) return res.status(400).json({ error: 'token required' });
+
+    const subs = readSubscribers();
+    const sub  = subs.find(s => s.token === token);
+    if (!sub) return res.status(404).json({ error: 'Token not found' });
+
+    if (!sub.unsubscribed) {
+        sub.unsubscribed     = true;
+        sub.unsubscribedDate = new Date().toISOString();
+        writeSubscribers(subs);
+        console.log(`[unsubscribe] ${sub.email} (was ${sub.frequency}) at ${sub.unsubscribedDate}`);
+    }
+    res.json({ message: 'Unsubscribed successfully', email: sub.email });
 });
 
 // ── Subscriptions (admin) ─────────────────────────────────────────────────
@@ -648,12 +685,15 @@ app.get('/api/admin/subscribers', requireAuth, (req, res) => {
     res.json(readSubscribers());
 });
 
-app.delete('/api/admin/subscribers/:index', requireAuth, (req, res) => {
-    const idx  = parseInt(req.params.index, 10);
+// Keyed on token, not array position — a stale admin tab deleting by index
+// removes whoever happens to sit at that index now, not the row that was clicked.
+app.delete('/api/admin/subscribers/:token', requireAuth, (req, res) => {
     const subs = readSubscribers();
-    if (isNaN(idx) || idx < 0 || idx >= subs.length) return res.status(404).json({ error: 'Not found' });
-    subs.splice(idx, 1);
+    const idx  = subs.findIndex(s => s.token === req.params.token);
+    if (idx === -1) return res.status(404).json({ error: 'Not found' });
+    const [removed] = subs.splice(idx, 1);
     writeSubscribers(subs);
+    console.log(`[admin] subscriber deleted: ${removed.email}`);
     res.status(204).send();
 });
 

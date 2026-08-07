@@ -796,6 +796,9 @@ main {
 
 .modal-btn-submit:hover { background: var(--brand-green-hover); }
 
+.modal-btn-submit--danger { background: #dc2626; color: #fff; }
+.modal-btn-submit--danger:hover { background: #b91c1c; }
+
 /* ── No Results ── */
 .no-results {
     text-align: center;
