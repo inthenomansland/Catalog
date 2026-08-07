@@ -512,6 +512,13 @@
                                 <input type="text" id="tags" placeholder="camera, SDI, live production">
                                 <span class="hint">Comma-separated keywords</span>
                             </div>
+                            <div class="form-group full">
+                                <label for="entry-request-link">Does this report answer a request?</label>
+                                <select id="entry-request-link">
+                                    <option value="">No — don't notify anyone</option>
+                                </select>
+                                <span class="hint" id="entry-request-hint">Picking a request emails the person who raised it, marks it complete, and sends them this report with a link to the dashboard. They don't need to be subscribed.</span>
+                            </div>
                         </div>
                         <div class="form-actions">
                             <button type="submit" class="btn-submit" id="submit-btn">Add to Catalogue</button>

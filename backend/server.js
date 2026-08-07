@@ -73,6 +73,20 @@ function readRequests()         { return JSON.parse(fs.readFileSync(REQUESTS_FIL
 function writeRequests(data)    { fs.writeFileSync(REQUESTS_FILE,     JSON.stringify(data, null, 2), 'utf8'); }
 
 function generateToken() { return crypto.randomBytes(32).toString('hex'); }
+function generateId()    { return crypto.randomBytes(8).toString('hex'); }
+
+// One-off migration. Requests predate stable ids and were addressed by array
+// position, so a stale admin tab could act on the wrong row. Now that a report
+// can be mailed to the person who raised a request, an off-by-one would send
+// one colleague's report to another — so every request gets an id for life.
+(function backfillRequestIds() {
+    const requests = readRequests();
+    const missing  = requests.filter(r => !r.id);
+    if (missing.length === 0) return;
+    missing.forEach(r => { r.id = generateId(); });
+    writeRequests(requests);
+    console.log(`Backfilled ids on ${missing.length} request(s)`);
+})();
 
 function requireAuth(req, res, next) {
     const auth = req.headers.authorization;
@@ -258,6 +272,11 @@ function dashboardButtonHtml(label) {
     return `<a href="${SITE_URL}" style="display:inline-block;background:#0d0d0d;color:#ffffff;text-decoration:none;font:600 13px/1 Segoe UI,Arial,sans-serif;padding:10px 18px;border-radius:6px;margin-top:2px;">${escapeHtml(label)}</a>`;
 }
 
+// Same button, arbitrary destination — used for the direct link to a report doc.
+function linkButtonHtml(href, label) {
+    return `<a href="${escapeHtml(href)}" style="display:inline-block;background:#6DC52D;color:#0d0d0d;text-decoration:none;font:600 13px/1 Segoe UI,Arial,sans-serif;padding:10px 18px;border-radius:6px;margin:0 8px 0 0;">${escapeHtml(label)}</a>`;
+}
+
 // Builds the branded HTML version of the approval email.
 function renderApprovalEmailHtml(r, typeName, dueDate) {
     const name     = escapeHtml(r.submitterName || 'there');
@@ -404,6 +423,73 @@ async function notifyRequestApproved(r) {
     });
 }
 
+// ── Report ready, to the person who raised the request ────────────────────
+// Transactional: this is a direct answer to something they asked the lab for,
+// so it goes out regardless of whether they ever subscribed, and carries no
+// unsubscribe link. Solving the "I can't make people subscribe" problem is the
+// whole point of it.
+function renderCompleteEmailHtml(r, entry, typeName) {
+    const reportBtn = entry.fullReport ? linkButtonHtml(entry.fullReport, 'Read the Full Report') : '';
+
+    const bodyHtml = `
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eceff0;border-bottom:1px solid #eceff0;margin-bottom:22px;">
+            <tr>
+                <td style="padding:7px 0;font:600 12px/1.4 Segoe UI,Arial,sans-serif;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;width:120px;vertical-align:top;">Your request</td>
+                <td style="padding:7px 0;font:400 14px/1.5 Segoe UI,Arial,sans-serif;color:#14171b;">${escapeHtml(r.jobName || '—')}</td>
+            </tr>
+        </table>
+        ${renderReportCardHtml(entry, { truncate: false })}
+        <div style="margin-top:6px;">
+            ${reportBtn}
+            ${dashboardButtonHtml('View on Dashboard')}
+        </div>`;
+
+    return emailShell({
+        heading: 'Your report is ready',
+        intro:   `Hi ${escapeHtml(r.submitterName || 'there')}, the report from your ${escapeHtml(typeName)} request has been published on the PoC Lab Research Catalogue.`,
+        bodyHtml,
+        footerHtml: emailFooterStandard,
+    });
+}
+
+async function notifyRequestComplete(r, entry) {
+    if (!r.submitterEmail) {
+        console.log(`[complete] no email on record for request "${r.jobName}" — not notified`);
+        return;
+    }
+    const typeName = r.type === 'bench' ? 'Bench Test' : 'PoC';
+
+    await sendEmail({
+        to:      r.submitterEmail,
+        subject: `Your report is ready: ${entry.title} — PoC Lab`,
+        text: [
+            `Hi ${r.submitterName || 'there'},`,
+            '',
+            `The report from your ${typeName} request has been published on the PoC Lab Research Catalogue.`,
+            '',
+            `Your request: ${r.jobName || '—'}`,
+            '',
+            `Report:       ${entry.title}`,
+            `Manufacturer: ${entry.manufacturer || '—'}`,
+            `Product:      ${entry.productName || '—'}`,
+            `Test type:    ${entry.testType || '—'}`,
+            `Published:    ${entry.date || '—'}`,
+            '',
+            'Summary:',
+            entry.summary || '—',
+            ...(entry.fullReport ? ['', `Read the full report: ${entry.fullReport}`] : []),
+            '',
+            `View the catalogue: ${SITE_URL}`,
+            '',
+            'Any questions, get in touch with the lab team: poc.lab@proav.com',
+            '',
+            '— proAV PoC Lab Team',
+        ].join('\n'),
+        html: renderCompleteEmailHtml(r, entry, typeName),
+    });
+    console.log(`[complete] report "${entry.title}" notified to ${r.submitterEmail} (request "${r.jobName}")`);
+}
+
 // ── Known issue admin notification ───────────────────────────────────────
 async function notifyNewKnownIssue(entry) {
     await sendEmail({
@@ -423,8 +509,14 @@ async function notifyNewKnownIssue(entry) {
 }
 
 // ── Subscriber notifications ──────────────────────────────────────────────
-async function notifyInstantSubscribers(entry) {
-    const subscribers = activeSubscribers().filter(s => s.frequency === 'instant');
+// skipEmail suppresses the generic notification for one address — used when
+// that person is getting the tailored "your report is ready" email instead, so
+// a requester who also subscribes doesn't receive two mails for one report.
+async function notifyInstantSubscribers(entry, skipEmail) {
+    const skip = skipEmail ? skipEmail.trim().toLowerCase() : null;
+    const subscribers = activeSubscribers()
+        .filter(s => s.frequency === 'instant')
+        .filter(s => !skip || s.email.trim().toLowerCase() !== skip);
     for (const sub of subscribers) {
         await sendEmail({
             to:      sub.email,
@@ -535,12 +627,33 @@ app.get('/api/entries', (req, res) => {
 });
 
 // ── Entries (admin write) ─────────────────────────────────────────────────
+// requestId is optional and is NOT part of the entry — it names the request this
+// report answers, so the person who raised it gets told the moment it's live.
 app.post('/api/entries', requireAuth, (req, res) => {
+    const { requestId, ...entry } = req.body || {};
+
     const data = readData();
-    data.unshift(req.body);
+    data.unshift(entry);
     writeData(data);
-    res.status(201).json(req.body);
-    notifyInstantSubscribers(req.body);
+    res.status(201).json(entry);
+
+    let fulfilled = null;
+    if (requestId) {
+        const requests = readRequests();
+        const r = requests.find(x => x.id === requestId);
+        if (r) {
+            r.status        = 'completed';
+            r.completedDate = new Date().toISOString().split('T')[0];
+            r.reportTitle   = entry.title;
+            writeRequests(requests);
+            fulfilled = r;
+            notifyRequestComplete(r, entry).catch(err => console.error('[complete] send failed:', err.message));
+        } else {
+            console.warn(`[complete] requestId ${requestId} not found — nobody notified`);
+        }
+    }
+
+    notifyInstantSubscribers(entry, fulfilled && fulfilled.submitterEmail);
 });
 
 app.put('/api/entries/:index', requireAuth, (req, res) => {
@@ -707,6 +820,7 @@ app.post('/api/requests', submitLimiter, async (req, res) => {
 
     const requests = readRequests();
     const entry = {
+        id: generateId(),
         type, submitterName, submitterEmail: submitterEmail || null,
         jobName, scope: scope || null, outcomes: outcomes || null,
         kit: kit || null, dateStart: dateStart || null, dateEnd: dateEnd || null,
@@ -726,25 +840,29 @@ app.get('/api/requests', requireAuth, (req, res) => {
 });
 
 // ── Requests (admin approve) ──────────────────────────────────────────────
-app.put('/api/requests/:index/approve', requireAuth, async (req, res) => {
-    const idx      = parseInt(req.params.index, 10);
+// Keyed on id, not array position: these actions email the submitter, and a
+// stale admin tab acting on an index would mail the wrong person.
+app.put('/api/requests/:id/approve', requireAuth, async (req, res) => {
     const requests = readRequests();
-    if (isNaN(idx) || idx < 0 || idx >= requests.length) return res.status(404).json({ error: 'Not found' });
+    const r = requests.find(x => x.id === req.params.id);
+    if (!r) return res.status(404).json({ error: 'Not found' });
     const accessCode = req.body && req.body.accessCode ? String(req.body.accessCode).trim() : '';
-    requests[idx].status     = 'approved';
-    requests[idx].accessCode = accessCode || null;
+    r.status     = 'approved';
+    r.accessCode = accessCode || null;
     writeRequests(requests);
-    notifyRequestApproved(requests[idx]).catch(() => {});
-    res.json(requests[idx]);
+    console.log(`[admin] request approved: "${r.jobName}" (${r.submitterEmail || 'no email'})`);
+    notifyRequestApproved(r).catch(() => {});
+    res.json(r);
 });
 
 // ── Requests (admin delete) ───────────────────────────────────────────────
-app.delete('/api/requests/:index', requireAuth, (req, res) => {
-    const idx      = parseInt(req.params.index, 10);
+app.delete('/api/requests/:id', requireAuth, (req, res) => {
     const requests = readRequests();
-    if (isNaN(idx) || idx < 0 || idx >= requests.length) return res.status(404).json({ error: 'Not found' });
-    requests.splice(idx, 1);
+    const idx = requests.findIndex(x => x.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Not found' });
+    const [removed] = requests.splice(idx, 1);
     writeRequests(requests);
+    console.log(`[admin] request deleted: "${removed.jobName}"`);
     res.status(204).send();
 });
 

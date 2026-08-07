@@ -17,6 +17,7 @@ function showAdminForm() {
     navigateTo(SECTIONS.includes(stored) ? stored : 'section-add');
     loadEntries();
     loadRequests();
+    loadRequestOptions();
     loadSubscribers();
     loadGotchas();
 }
@@ -84,6 +85,12 @@ async function submitEntry(event) {
         return;
     }
 
+    const requestSelect  = document.getElementById('entry-request-link');
+    const requestId      = requestSelect ? requestSelect.value : '';
+    const requesterLabel = requestId && requestSelect.selectedOptions.length
+        ? requestSelect.selectedOptions[0].dataset.requester || 'the requester'
+        : '';
+
     btn.disabled       = true;
     status.className   = 'status loading';
     status.textContent = 'Saving...';
@@ -95,7 +102,10 @@ async function submitEntry(event) {
                 'Content-Type':  'application/json',
                 'Authorization': `Bearer ${authToken}`
             },
-            body: JSON.stringify(entry)
+            // requestId travels alongside the entry but isn't part of it — the
+            // backend strips it, marks that request complete and emails the
+            // person who raised it.
+            body: JSON.stringify({ ...entry, requestId: requestId || undefined })
         });
 
         if (res.status === 401) {
@@ -107,10 +117,14 @@ async function submitEntry(event) {
 
         if (res.ok) {
             status.className   = 'status success';
-            status.textContent = `"${entry.title}" added to catalogue.`;
+            status.textContent = requestId
+                ? `"${entry.title}" added — ${requesterLabel} has been emailed.`
+                : `"${entry.title}" added to catalogue.`;
             document.getElementById('entry-form').reset();
             document.getElementById('date').value = new Date().toISOString().split('T')[0];
             loadEntries();
+            loadRequests();
+            loadRequestOptions();
         } else {
             status.className   = 'status error';
             status.textContent = 'Failed to save — please try again.';
@@ -323,6 +337,43 @@ async function deleteEntry(idx, btn) {
     }
 }
 
+// ── Link a report to an open request ──────────────────────────────────────
+// Only requests that are still open AND have an email on record can be
+// notified, so anything else would be a dead option.
+async function loadRequestOptions() {
+    const sel = document.getElementById('entry-request-link');
+    if (!sel) return;
+
+    try {
+        const res = await fetch('/api/requests', {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (!res.ok) return;
+
+        const open = (await res.json()).filter(r =>
+            r.status !== 'completed' && r.submitterEmail && r.id
+        );
+
+        sel.innerHTML = '<option value="">No — don\'t notify anyone</option>';
+        open.forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = r.id;
+            opt.dataset.requester = r.submitterName || r.submitterEmail;
+            opt.textContent = `${r.jobName} — ${r.submitterName} (${r.type === 'bench' ? 'Bench Test' : 'PoC'})`;
+            sel.appendChild(opt);
+        });
+
+        const hint = document.getElementById('entry-request-hint');
+        if (hint) {
+            hint.textContent = open.length === 0
+                ? 'No open requests with an email address on record.'
+                : `${open.length} open request${open.length === 1 ? '' : 's'} available.`;
+        }
+    } catch {
+        /* dropdown just stays on its default option */
+    }
+}
+
 // ── Requests ──────────────────────────────────────────────────────────────
 async function loadRequests() {
     const list = document.getElementById('requests-list');
@@ -343,8 +394,8 @@ async function loadRequests() {
             return;
         }
 
-        const pending  = requests.map((r, i) => ({ ...r, _idx: i })).filter(r => r.status === 'pending');
-        const reviewed = requests.map((r, i) => ({ ...r, _idx: i })).filter(r => r.status !== 'pending');
+        const pending  = requests.filter(r => r.status === 'pending');
+        const reviewed = requests.filter(r => r.status !== 'pending');
 
         updateBadge('requests-pending-badge', pending.length, pending.length > 0);
         updateBadge('sb-requests-pending',   pending.length, pending.length > 0);
@@ -375,7 +426,7 @@ async function loadRequests() {
 
 function buildRequestRow(r, isPending) {
     const wrap = document.createElement('div');
-    wrap.id    = `request-row-${r._idx}`;
+    wrap.id    = `request-row-${r.id}`;
 
     if (isPending) {
         wrap.style.cssText = 'border-left:3px solid #f97316;padding-left:0.6rem;background:#fff7ed;margin-bottom:0.25rem;border-radius:0 6px 6px 0;';
@@ -390,21 +441,30 @@ function buildRequestRow(r, isPending) {
         ? `<span class="entry-row-meta">Dates: ${r.dateStart}${r.dateEnd ? ' → ' + r.dateEnd : ''}</span>`
         : '';
 
+    const doneBadge = r.status === 'completed'
+        ? `<span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:0.72rem;font-weight:700;background:#d1fae5;color:#065f46;margin-right:0.4rem;">Report sent</span>`
+        : '';
+
+    const doneMeta = r.status === 'completed'
+        ? `<span class="entry-row-meta">Report "${escapeHtml(r.reportTitle || '—')}" published ${r.completedDate || '—'}${r.submitterEmail ? ' · emailed ' + escapeHtml(r.submitterEmail) : ''}</span>`
+        : '';
+
     wrap.innerHTML = `
         <div class="entry-row">
             <div class="entry-row-info">
-                <span class="entry-row-title">${badge}${escapeHtml(r.jobName)}</span>
+                <span class="entry-row-title">${doneBadge}${badge}${escapeHtml(r.jobName)}</span>
                 <span class="entry-row-meta">${escapeHtml(r.submitterName)} · Submitted ${r.submittedDate || '—'}</span>
                 ${dateRange}
+                ${doneMeta}
             </div>
             <div class="entry-row-actions">
-                <button class="entry-row-edit" onclick="toggleRequestDetail(${r._idx})">Details</button>
-                ${isPending ? `<input type="text" id="request-accesscode-${r._idx}" placeholder="Access code (optional)" style="width:150px;padding:0.3rem 0.55rem;font-size:0.78rem;border:1px solid #d1d5db;border-radius:5px;">
-                <button class="entry-row-approve" onclick="approveRequest(${r._idx}, this)">Approve</button>
-                <button class="entry-row-delete"  onclick="deleteRequest(${r._idx}, this)">Decline</button>` : `<button class="entry-row-delete" onclick="deleteRequest(${r._idx}, this)">Delete</button>`}
+                <button class="entry-row-edit" onclick="toggleRequestDetail('${r.id}')">Details</button>
+                ${isPending ? `<input type="text" id="request-accesscode-${r.id}" placeholder="Access code (optional)" style="width:150px;padding:0.3rem 0.55rem;font-size:0.78rem;border:1px solid #d1d5db;border-radius:5px;">
+                <button class="entry-row-approve" onclick="approveRequest('${r.id}', this)">Approve</button>
+                <button class="entry-row-delete"  onclick="deleteRequest('${r.id}', this)">Decline</button>` : `<button class="entry-row-delete" onclick="deleteRequest('${r.id}', this)">Delete</button>`}
             </div>
         </div>
-        <div id="request-detail-${r._idx}" class="hidden" style="background:#f8fafc;border:1px solid #e1e4e8;border-left:3px solid #6DC52D;border-radius:8px;padding:1.1rem;margin:0.25rem 0 0.5rem;">
+        <div id="request-detail-${r.id}" class="hidden" style="background:#f8fafc;border:1px solid #e1e4e8;border-left:3px solid #6DC52D;border-radius:8px;padding:1.1rem;margin:0.25rem 0 0.5rem;">
             ${r.accessCode      ? `<p style="font-size:0.82rem;margin-bottom:0.6rem;"><strong>Access Code Sent:</strong> ${escapeHtml(r.accessCode)}</p>` : ''}
             ${r.submitterEmail ? `<p style="font-size:0.82rem;margin-bottom:0.6rem;"><strong>Email:</strong> ${escapeHtml(r.submitterEmail)}</p>` : ''}
             ${r.persons        ? `<p style="font-size:0.82rem;margin-bottom:0.75rem;"><strong>Persons:</strong> ${escapeHtml(r.persons)}</p>` : ''}
@@ -416,25 +476,25 @@ function buildRequestRow(r, isPending) {
     return wrap;
 }
 
-function toggleRequestDetail(idx) {
-    const detail = document.getElementById(`request-detail-${idx}`);
-    const btn    = document.querySelector(`#request-row-${idx} .entry-row-edit`);
+function toggleRequestDetail(id) {
+    const detail = document.getElementById(`request-detail-${id}`);
+    const btn    = document.querySelector(`#request-row-${id} .entry-row-edit`);
     const isNowHidden = detail.classList.toggle('hidden');
     btn.textContent   = isNowHidden ? 'Details' : 'Close';
 }
 
-async function approveRequest(idx, btn) {
+async function approveRequest(id, btn) {
     btn.disabled = true;
-    const codeInput  = document.getElementById(`request-accesscode-${idx}`);
+    const codeInput  = document.getElementById(`request-accesscode-${id}`);
     const accessCode = codeInput ? codeInput.value.trim() : '';
     try {
-        const res = await fetch(`/api/requests/${idx}/approve`, {
+        const res = await fetch(`/api/requests/${encodeURIComponent(id)}/approve`, {
             method:  'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
             body:    JSON.stringify({ accessCode })
         });
         if (res.status === 401) { logout(); return; }
-        if (res.ok) loadRequests();
+        if (res.ok) { loadRequests(); loadRequestOptions(); }
         else { alert('Failed to approve.'); btn.disabled = false; }
     } catch {
         alert('Network error.');
@@ -442,16 +502,16 @@ async function approveRequest(idx, btn) {
     }
 }
 
-async function deleteRequest(idx, btn) {
+async function deleteRequest(id, btn) {
     if (!confirm('Delete this request? This cannot be undone.')) return;
     btn.disabled = true;
     try {
-        const res = await fetch(`/api/requests/${idx}`, {
+        const res = await fetch(`/api/requests/${encodeURIComponent(id)}`, {
             method:  'DELETE',
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
         if (res.status === 401) { logout(); return; }
-        if (res.ok) loadRequests();
+        if (res.ok) { loadRequests(); loadRequestOptions(); }
         else { alert('Failed to delete.'); btn.disabled = false; }
     } catch {
         alert('Network error.');
