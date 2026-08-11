@@ -9,6 +9,12 @@ const rateLimit  = require('express-rate-limit');
 const app = express();
 app.use(express.json());
 
+// One reverse proxy terminates TLS in front of this container, so without this
+// every request looks like it came from the proxy and the rate limiters bucket
+// the whole internet together. That matters most for break-glass: a stranger's
+// failed guesses must not lock out someone in a real emergency.
+app.set('trust proxy', 1);
+
 // Security headers
 app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -30,6 +36,20 @@ const submitLimiter = rateLimit({
     message:         { error: 'Too many submissions. Please try again in a few minutes.' },
 });
 
+// Break-glass sits on a public endpoint guarding a real licence key, so it gets
+// a far tighter limit than the request forms: a handful of tries an hour is
+// plenty for someone who has actually been given the password, and useless to
+// anyone guessing. Successful breaks do not count against it — the cabinet
+// locks itself after one anyway.
+const breakGlassLimiter = rateLimit({
+    windowMs:            60 * 60 * 1000,
+    max:                 10,
+    skipSuccessfulRequests: true,
+    standardHeaders:     true,
+    legacyHeaders:       false,
+    message:             { error: 'Too many attempts. Emergency access is locked for an hour — contact the lab team on poc.lab@proav.com.' },
+});
+
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -40,6 +60,7 @@ const GOTCHAS_FILE      = path.join(DATA_DIR, 'gotchas.json');
 const SUBSCRIBERS_FILE  = path.join(DATA_DIR, 'subscribers.json');
 const DIGEST_STATE_FILE = path.join(DATA_DIR, 'digest-state.json');
 const REQUESTS_FILE     = path.join(DATA_DIR, 'requests.json');
+const BREAKGLASS_FILE   = path.join(DATA_DIR, 'breakglass.json');
 const SITE_URL          = 'https://poc-lab.av.proav.cloud';
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -48,6 +69,28 @@ const JWT_SECRET     = process.env.JWT_SECRET;
 if (!ADMIN_PASSWORD) throw new Error('ADMIN_PASSWORD environment variable is required');
 if (!JWT_SECRET)     throw new Error('JWT_SECRET environment variable is required');
 
+// The break-glass password is deliberately NOT required to boot. It is a
+// separate shared secret from ADMIN_PASSWORD, and if it is missing the cabinet
+// simply reports itself unconfigured and hides — better than taking the whole
+// dashboard down over a feature nobody may be using yet.
+const BREAKGLASS_PASSWORD = process.env.BREAKGLASS_PASSWORD || null;
+if (!BREAKGLASS_PASSWORD) console.log('BREAKGLASS_PASSWORD not set — emergency access is disabled');
+
+// The emergency licence key cabinet. `armed` is the whole state machine: a key
+// is handed out once and the cabinet locks, so a second person in the same
+// emergency is told who already has it rather than quietly getting it too.
+// `log` is append-only — arming, breaking and clearing all leave a trace.
+const EMPTY_CABINET = {
+    key:    null,
+    label:  null,
+    armed:  false,
+    armedAt: null,
+    brokenBy:     null,
+    brokenReason: null,
+    brokenAt:     null,
+    log: [],
+};
+
 // Bootstrap data volume on first run
 if (!fs.existsSync(DATA_DIR))          fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(DATA_FILE))         { fs.copyFileSync(DEFAULT_DATA, DATA_FILE); console.log('Initialised data.json from bundled default'); }
@@ -55,6 +98,7 @@ if (!fs.existsSync(GOTCHAS_FILE))      fs.writeFileSync(GOTCHAS_FILE,     '[]', 
 if (!fs.existsSync(SUBSCRIBERS_FILE))  fs.writeFileSync(SUBSCRIBERS_FILE, '[]', 'utf8');
 if (!fs.existsSync(DIGEST_STATE_FILE)) fs.writeFileSync(DIGEST_STATE_FILE, JSON.stringify({ lastWeekly: null, lastMonthly: null }), 'utf8');
 if (!fs.existsSync(REQUESTS_FILE))     fs.writeFileSync(REQUESTS_FILE,     '[]', 'utf8');
+if (!fs.existsSync(BREAKGLASS_FILE))   fs.writeFileSync(BREAKGLASS_FILE,   JSON.stringify(EMPTY_CABINET, null, 2), 'utf8');
 
 function readData()             { return JSON.parse(fs.readFileSync(DATA_FILE,         'utf8')); }
 function writeData(data)        { fs.writeFileSync(DATA_FILE,         JSON.stringify(data, null, 2), 'utf8'); }
@@ -71,9 +115,28 @@ function readDigestState()      { return JSON.parse(fs.readFileSync(DIGEST_STATE
 function writeDigestState(data) { fs.writeFileSync(DIGEST_STATE_FILE, JSON.stringify(data, null, 2), 'utf8'); }
 function readRequests()         { return JSON.parse(fs.readFileSync(REQUESTS_FILE,     'utf8')); }
 function writeRequests(data)    { fs.writeFileSync(REQUESTS_FILE,     JSON.stringify(data, null, 2), 'utf8'); }
+function readCabinet()          { return { ...EMPTY_CABINET, ...JSON.parse(fs.readFileSync(BREAKGLASS_FILE, 'utf8')) }; }
+function writeCabinet(data)     { fs.writeFileSync(BREAKGLASS_FILE,   JSON.stringify(data, null, 2), 'utf8'); }
 
 function generateToken() { return crypto.randomBytes(32).toString('hex'); }
 function generateId()    { return crypto.randomBytes(8).toString('hex'); }
+
+// Compares in constant time so the endpoint cannot be probed a character at a
+// time. Unequal lengths short-circuit — timingSafeEqual throws on a mismatch,
+// and password length is not the secret here.
+function safeEqual(a, b) {
+    const ab = Buffer.from(String(a || ''), 'utf8');
+    const bb = Buffer.from(String(b || ''), 'utf8');
+    if (ab.length !== bb.length) return false;
+    return crypto.timingSafeEqual(ab, bb);
+}
+
+// Behind nginx the socket address is the proxy, so prefer the forwarded header.
+function clientIp(req) {
+    const fwd = req.headers['x-forwarded-for'];
+    if (fwd) return String(fwd).split(',')[0].trim();
+    return req.socket.remoteAddress || 'unknown';
+}
 
 // One-off migration. Requests predate stable ids and were addressed by array
 // position, so a stale admin tab could act on the wrong row. Now that a report
@@ -525,6 +588,55 @@ async function notifyRequestComplete(r, entry) {
     console.log(`[complete] report "${entry.title}" notified to ${to} (request "${r.jobName}")`);
 }
 
+// ── Break-glass alert ────────────────────────────────────────────────────
+// Sent the moment the cabinet is opened. This is the only thing that tells the
+// lab team an emergency key is out in the wild while it is still happening.
+// Failed password attempts are logged to the container log but not emailed —
+// a public endpoint will attract idle guesses, and an alert that cries wolf
+// gets muted, which would defeat the one alert that matters.
+async function notifyGlassBroken(cabinet, who, reason, ip) {
+    const when = new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+
+    const bodyHtml = `
+        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;font:400 14px/1.7 Segoe UI,Arial,sans-serif;color:#2b2f2b;margin-bottom:14px;">
+            <tr><td style="padding:3px 0;width:120px;color:#6b7280;">Opened by</td><td style="padding:3px 0;font-weight:600;">${escapeHtml(who)}</td></tr>
+            <tr><td style="padding:3px 0;color:#6b7280;">Reason</td><td style="padding:3px 0;">${escapeHtml(reason)}</td></tr>
+            <tr><td style="padding:3px 0;color:#6b7280;">Key</td><td style="padding:3px 0;">${escapeHtml(cabinet.label || 'Emergency licence key')}</td></tr>
+            <tr><td style="padding:3px 0;color:#6b7280;">Time</td><td style="padding:3px 0;">${escapeHtml(when)}</td></tr>
+            <tr><td style="padding:3px 0;color:#6b7280;">IP</td><td style="padding:3px 0;">${escapeHtml(ip)}</td></tr>
+        </table>
+        <p style="margin:0 0 14px;font:400 14px/1.7 Segoe UI,Arial,sans-serif;color:#2b2f2b;">
+            The cabinet is now <strong>locked</strong> — nobody else can retrieve this key. To make emergency access available again, load a replacement key in the admin panel and re-arm it.
+        </p>
+        <div style="margin-top:6px;">${dashboardButtonHtml('Open the Dashboard')}</div>`;
+
+    await sendEmail({
+        to:      'poc.lab@proav.com',
+        subject: `BREAK GLASS USED: ${cabinet.label || 'emergency licence key'} released to ${who}`,
+        text: [
+            'The emergency licence key cabinet has been opened.',
+            '',
+            `Opened by: ${who}`,
+            `Reason:    ${reason}`,
+            `Key:       ${cabinet.label || 'Emergency licence key'}`,
+            `Time:      ${when}`,
+            `IP:        ${ip}`,
+            '',
+            'The cabinet is now LOCKED — nobody else can retrieve this key.',
+            'To make emergency access available again, load a replacement key in',
+            'the admin panel and re-arm it.',
+            '',
+            `${SITE_URL}/admin.html`,
+        ].join('\n'),
+        html: emailShell({
+            heading: 'Break glass used',
+            intro:   `The emergency licence key was released to ${escapeHtml(who)}.`,
+            bodyHtml,
+            footerHtml: emailFooterStandard,
+        }),
+    });
+}
+
 // ── Known issue admin notification ───────────────────────────────────────
 async function notifyNewKnownIssue(entry) {
     await sendEmail({
@@ -656,6 +768,115 @@ app.post('/api/auth', (req, res) => {
     }
     const token = jwt.sign({ admin: true }, JWT_SECRET, { expiresIn: '12h' });
     res.json({ token });
+});
+
+// ── Break glass ───────────────────────────────────────────────────────────
+// Deliberately public and separate from admin auth: the whole point is that it
+// works when the admin is unreachable. The password is a pre-agreed shared
+// secret, which means it can prove someone is authorised but never who they
+// are — so name and reason are mandatory, and they are what the audit trail is
+// actually made of.
+
+// Public status. Says whether the cabinet can be opened and, once used, who
+// used it — never the key itself, and never whether a password would work.
+app.get('/api/breakglass/status', (req, res) => {
+    if (!BREAKGLASS_PASSWORD) return res.json({ configured: false });
+    const c = readCabinet();
+    res.json({
+        configured: true,
+        available:  Boolean(c.armed && c.key),
+        label:      c.label || null,
+        brokenBy:   c.brokenBy   || null,
+        brokenAt:   c.brokenAt   || null,
+    });
+});
+
+app.post('/api/breakglass', breakGlassLimiter, async (req, res) => {
+    if (!BREAKGLASS_PASSWORD) return res.status(503).json({ error: 'Emergency access is not configured.' });
+
+    const { password, name, reason } = req.body || {};
+    const who    = (name   || '').trim();
+    const why    = (reason || '').trim();
+
+    if (!who) return res.status(400).json({ error: 'Please enter your name — emergency access is recorded against it.' });
+    if (!why) return res.status(400).json({ error: 'Please give a brief reason for needing the key.' });
+
+    if (!safeEqual(password, BREAKGLASS_PASSWORD)) {
+        console.warn(`[breakglass] failed attempt by "${who}" from ${clientIp(req)}`);
+        return res.status(401).json({ error: 'That is not the emergency password.' });
+    }
+
+    // Password is right — but the cabinet may already be empty. Say who has the
+    // key rather than a bare refusal: in an emergency the useful answer is
+    // which colleague to go and ask.
+    const cabinet = readCabinet();
+    if (!cabinet.armed || !cabinet.key) {
+        return res.status(409).json({
+            error: cabinet.brokenBy
+                ? `This key was already taken by ${cabinet.brokenBy} on ${(cabinet.brokenAt || '').slice(0, 10)}. Contact them or the lab team on poc.lab@proav.com.`
+                : 'There is no key loaded. Contact the lab team on poc.lab@proav.com.',
+        });
+    }
+
+    const at = new Date().toISOString();
+    const ip = clientIp(req);
+
+    cabinet.armed        = false;
+    cabinet.brokenBy     = who;
+    cabinet.brokenReason = why;
+    cabinet.brokenAt     = at;
+    cabinet.log.push({ id: generateId(), action: 'broken', at, by: who, reason: why, ip, label: cabinet.label || null });
+    writeCabinet(cabinet);
+
+    console.warn(`[breakglass] OPENED by "${who}" from ${ip} — reason: ${why}`);
+    res.json({ key: cabinet.key, label: cabinet.label || null });
+
+    notifyGlassBroken(cabinet, who, why, ip).catch(err => console.error('[breakglass] alert failed:', err.message));
+});
+
+// Admin view — the key is included here so it can be confirmed before re-arming.
+app.get('/api/breakglass', requireAuth, (req, res) => {
+    const c = readCabinet();
+    res.json({ ...c, configured: Boolean(BREAKGLASS_PASSWORD) });
+});
+
+// Load a key and arm the cabinet. Also the re-arm path after a break.
+app.put('/api/breakglass', requireAuth, (req, res) => {
+    const { key, label } = req.body || {};
+    const trimmed = (key || '').trim();
+    if (!trimmed) return res.status(400).json({ error: 'A licence key is required.' });
+
+    const cabinet = readCabinet();
+    const at      = new Date().toISOString();
+    const rearmed = Boolean(cabinet.brokenAt);
+
+    cabinet.key     = trimmed;
+    cabinet.label   = (label || '').trim() || null;
+    cabinet.armed   = true;
+    cabinet.armedAt = at;
+    // Cleared so status reads "available" again, but the break stays in the log
+    // — the history of who took what is the point of the whole feature.
+    cabinet.brokenBy     = null;
+    cabinet.brokenReason = null;
+    cabinet.brokenAt     = null;
+    cabinet.log.push({ id: generateId(), action: rearmed ? 're-armed' : 'armed', at, by: 'admin', label: cabinet.label, ip: clientIp(req) });
+    writeCabinet(cabinet);
+
+    console.log(`[breakglass] cabinet ${rearmed ? 're-armed' : 'armed'}: ${cabinet.label || 'unlabelled key'}`);
+    res.json({ armed: true, label: cabinet.label, armedAt: at });
+});
+
+// Empty the cabinet without handing the key out — for a key that expired or was
+// replaced out of band. Leaves the log intact.
+app.delete('/api/breakglass', requireAuth, (req, res) => {
+    const cabinet = readCabinet();
+    const at      = new Date().toISOString();
+    cabinet.key   = null;
+    cabinet.armed = false;
+    cabinet.log.push({ id: generateId(), action: 'cleared', at, by: 'admin', label: cabinet.label, ip: clientIp(req) });
+    writeCabinet(cabinet);
+    console.log('[breakglass] cabinet cleared by admin');
+    res.status(204).send();
 });
 
 // ── Entries (public read) ─────────────────────────────────────────────────

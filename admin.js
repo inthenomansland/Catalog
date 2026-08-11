@@ -7,6 +7,7 @@ function showLoginForm() {
     document.getElementById('admin-form-section').classList.add('hidden');
     document.getElementById('admin-sidebar').classList.remove('visible');
     document.getElementById('admin-password').focus();
+    loadGlassStatus();
 }
 
 function showAdminForm() {
@@ -20,6 +21,7 @@ function showAdminForm() {
     loadRequestOptions();
     loadSubscribers();
     loadGotchas();
+    loadBreakGlass();
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────
@@ -56,6 +58,115 @@ function logout() {
     authToken = null;
     localStorage.removeItem('poc-admin-token');
     showLoginForm();
+}
+
+// ── Break glass (login page) ──────────────────────────────────────────────
+// This is the emergency path and runs with no admin token at all — that is the
+// point of it. Everything sensitive is decided server-side; this code only ever
+// renders what the server chose to return.
+async function loadGlassStatus() {
+    const card = document.getElementById('glass-card');
+    if (!card) return;
+
+    try {
+        const res = await fetch('/api/breakglass/status');
+        if (!res.ok) return;
+        const s = await res.json();
+
+        // No password configured on the server — show nothing at all rather
+        // than a box that cannot work.
+        if (!s.configured) { card.classList.add('hidden'); return; }
+        card.classList.remove('hidden');
+
+        const blurb  = document.getElementById('glass-blurb');
+        const btn    = document.getElementById('glass-open-btn');
+        const locked = document.getElementById('glass-locked');
+
+        if (s.available) {
+            blurb.textContent = `${s.label || 'Emergency licence key'}. Opening this is recorded and the lab team is notified immediately.`;
+            btn.classList.remove('hidden');
+            locked.classList.add('hidden');
+        } else {
+            // Name who holds it: in an emergency the useful answer is usually
+            // "go and ask Dave", not "access denied".
+            blurb.textContent = `${s.label || 'Emergency licence key'} — currently unavailable.`;
+            btn.classList.add('hidden');
+            locked.classList.remove('hidden');
+            locked.textContent = s.brokenBy
+                ? `Already taken by ${s.brokenBy} on ${(s.brokenAt || '').slice(0, 10)}. Contact them, or the lab team on poc.lab@proav.com.`
+                : 'No key is currently loaded. Contact the lab team on poc.lab@proav.com.';
+        }
+    } catch {
+        /* Dashboard still works without it — leave the card hidden. */
+    }
+}
+
+function showGlassForm() {
+    document.getElementById('glass-open-btn').classList.add('hidden');
+    document.getElementById('glass-form').classList.remove('hidden');
+    document.getElementById('glass-password').focus();
+}
+
+async function breakGlass(event) {
+    event.preventDefault();
+    const btn = document.getElementById('glass-submit-btn');
+    const msg = document.getElementById('glass-msg');
+
+    const password = document.getElementById('glass-password').value;
+    const name     = document.getElementById('glass-name').value.trim();
+    const reason   = document.getElementById('glass-reason').value.trim();
+
+    msg.className   = 'glass-msg';
+    msg.textContent = '';
+
+    if (!password || !name || !reason) {
+        msg.className   = 'glass-msg error';
+        msg.textContent = 'Password, your name and a reason are all required.';
+        return;
+    }
+
+    btn.disabled    = true;
+    btn.textContent = 'Checking...';
+
+    try {
+        const res  = await fetch('/api/breakglass', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ password, name, reason }),
+        });
+        const body = await res.json().catch(() => ({}));
+
+        if (res.ok) {
+            document.getElementById('glass-form').classList.add('hidden');
+            document.getElementById('glass-blurb').textContent =
+                'Key released. This has been recorded and the lab team has been notified.';
+            document.getElementById('glass-key-label').textContent = body.label || 'Emergency licence key';
+            document.getElementById('glass-key-value').textContent = body.key;
+            document.getElementById('glass-key-box').classList.remove('hidden');
+            return;
+        }
+
+        msg.className   = 'glass-msg error';
+        msg.textContent = body.error || 'Could not release the key.';
+    } catch {
+        msg.className   = 'glass-msg error';
+        msg.textContent = 'Could not connect to the server.';
+    } finally {
+        btn.disabled    = false;
+        btn.textContent = 'Release the key';
+    }
+}
+
+async function copyGlassKey() {
+    const value = document.getElementById('glass-key-value').textContent;
+    const btn   = document.getElementById('glass-copy-btn');
+    try {
+        await navigator.clipboard.writeText(value);
+        btn.textContent = 'Copied';
+        setTimeout(() => { btn.textContent = 'Copy key'; }, 2000);
+    } catch {
+        btn.textContent = 'Select it manually';
+    }
 }
 
 // ── Add entry ─────────────────────────────────────────────────────────────
@@ -768,7 +879,139 @@ async function deleteGotcha(idx, btn) {
 }
 
 // ── Section navigation ────────────────────────────────────────────────────
-const SECTIONS = ['section-add', 'section-entries', 'section-requests', 'section-subscribers', 'section-issues'];
+// ── Break glass (admin panel) ─────────────────────────────────────────────
+const GLASS_ACTION_LABELS = {
+    'broken':   { text: 'Key released',    colour: '#991b1b', bg: '#fee2e2' },
+    'armed':    { text: 'Key loaded',      colour: '#065f46', bg: '#d1fae5' },
+    're-armed': { text: 'Re-armed',        colour: '#065f46', bg: '#d1fae5' },
+    'cleared':  { text: 'Cleared',         colour: '#6b7280', bg: '#f3f4f6' },
+};
+
+async function loadBreakGlass() {
+    const statusEl = document.getElementById('breakglass-status');
+    const logEl    = document.getElementById('breakglass-log');
+    if (!statusEl) return;
+
+    try {
+        const res = await fetch('/api/breakglass', {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (res.status === 401) { logout(); return; }
+        const c = await res.json();
+
+        if (!c.configured) {
+            statusEl.innerHTML = `
+                <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:0.9rem 1rem;font-size:0.85rem;color:#78350f;line-height:1.6;">
+                    <strong>Not configured.</strong> Emergency access is switched off until <code>BREAKGLASS_PASSWORD</code> is set on the container. Until then the break-glass box is hidden from the login page, and a key loaded here cannot be released.
+                </div>`;
+        } else if (c.armed && c.key) {
+            statusEl.innerHTML = `
+                <div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:0.9rem 1rem;font-size:0.85rem;color:#065f46;line-height:1.6;">
+                    <strong>Armed and available.</strong> ${escapeHtml(c.label || 'Emergency licence key')} can be released from the login page by anyone with the emergency password. Loaded ${(c.armedAt || '').slice(0, 10)}.
+                </div>`;
+            updateBadge('breakglass-state-badge', 0, false);
+            updateBadge('sb-breakglass', 0, false);
+        } else if (c.brokenBy) {
+            statusEl.innerHTML = `
+                <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:0.9rem 1rem;font-size:0.85rem;color:#991b1b;line-height:1.6;">
+                    <strong>Glass broken &mdash; locked.</strong> ${escapeHtml(c.label || 'The key')} was released to <strong>${escapeHtml(c.brokenBy)}</strong> on ${(c.brokenAt || '').slice(0, 10)}.<br>
+                    Reason given: ${escapeHtml(c.brokenReason || '—')}<br>
+                    Load a replacement key below to make emergency access available again.
+                </div>`;
+            updateBadge('breakglass-state-badge', 1, true);
+            document.getElementById('breakglass-state-badge').textContent = 'Used';
+            const sb = document.getElementById('sb-breakglass');
+            if (sb) { sb.textContent = '!'; sb.style.display = ''; }
+        } else {
+            statusEl.innerHTML = `
+                <div style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:8px;padding:0.9rem 1rem;font-size:0.85rem;color:#374151;line-height:1.6;">
+                    <strong>Empty.</strong> No key is loaded, so the login page shows the box as unavailable.
+                </div>`;
+            updateBadge('breakglass-state-badge', 0, false);
+            updateBadge('sb-breakglass', 0, false);
+        }
+
+        document.getElementById('bg-save-btn').textContent = c.brokenBy ? 'Load replacement key & re-arm' : 'Load key & arm';
+        document.getElementById('bg-label').value = c.label || '';
+
+        // The log is the reason this feature exists, so render it oldest-last
+        // and never offer a way to delete a line of it.
+        const log = (c.log || []).slice().reverse();
+        if (log.length === 0) {
+            logEl.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">Nothing recorded yet.</p>';
+            return;
+        }
+
+        logEl.innerHTML = '';
+        log.forEach(item => {
+            const meta = GLASS_ACTION_LABELS[item.action] || { text: item.action, colour: '#374151', bg: '#f3f4f6' };
+            const row  = document.createElement('div');
+            row.className = 'entry-row';
+            row.innerHTML = `
+                <div class="entry-row-info">
+                    <span class="entry-row-title">
+                        <span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:0.72rem;font-weight:700;background:${meta.bg};color:${meta.colour};margin-right:0.4rem;">${meta.text}</span>
+                        ${escapeHtml(item.by || '—')}
+                    </span>
+                    <span class="entry-row-meta">
+                        ${(item.at || '').replace('T', ' ').slice(0, 16)} UTC
+                        ${item.label  ? ' &middot; ' + escapeHtml(item.label) : ''}
+                        ${item.ip     ? ' &middot; ' + escapeHtml(item.ip)    : ''}
+                        ${item.reason ? '<br>Reason: ' + escapeHtml(item.reason) : ''}
+                    </span>
+                </div>`;
+            logEl.appendChild(row);
+        });
+    } catch {
+        statusEl.innerHTML = '<p style="color:#991b1b;font-size:0.85rem;">Could not load break-glass status.</p>';
+    }
+}
+
+async function saveBreakGlass(event) {
+    event.preventDefault();
+    const btn    = document.getElementById('bg-save-btn');
+    const status = document.getElementById('breakglass-save-status');
+    const key    = document.getElementById('bg-key').value.trim();
+    const label  = document.getElementById('bg-label').value.trim();
+
+    if (!key) {
+        status.className   = 'status error';
+        status.textContent = 'Enter the licence key to load.';
+        return;
+    }
+
+    const original = btn.textContent;
+    btn.disabled    = true;
+    btn.textContent = 'Saving...';
+
+    try {
+        const res = await fetch('/api/breakglass', {
+            method:  'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+            body:    JSON.stringify({ key, label }),
+        });
+        if (res.status === 401) { logout(); return; }
+
+        if (res.ok) {
+            status.className   = 'status success';
+            status.textContent = 'Key loaded. Emergency access is armed.';
+            document.getElementById('bg-key').value = '';
+            loadBreakGlass();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            status.className   = 'status error';
+            status.textContent = body.error || 'Could not save the key.';
+        }
+    } catch {
+        status.className   = 'status error';
+        status.textContent = 'Could not connect to the server.';
+    } finally {
+        btn.disabled    = false;
+        btn.textContent = original;
+    }
+}
+
+const SECTIONS = ['section-add', 'section-entries', 'section-requests', 'section-subscribers', 'section-issues', 'section-breakglass'];
 
 function navigateTo(id) {
     SECTIONS.forEach(sid => document.getElementById(sid).classList.add('hidden'));
@@ -795,6 +1038,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('login-form').addEventListener('submit', login);
     document.getElementById('entry-form').addEventListener('submit', submitEntry);
     document.getElementById('gotcha-form').addEventListener('submit', submitGotcha);
+    document.getElementById('glass-form').addEventListener('submit', breakGlass);
+    document.getElementById('breakglass-form').addEventListener('submit', saveBreakGlass);
 
     if (authToken) {
         showAdminForm();

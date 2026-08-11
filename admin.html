@@ -169,6 +169,102 @@
             min-height: 1.2em;
         }
 
+        /* ── Break glass ─────────────────────────────────── */
+        /* Deliberately unlike the admin card: this is not a second way in, it
+           is an emergency exit, and it should read as one at a glance. */
+        .glass-card {
+            max-width: 380px;
+            margin-top: 1.25rem;
+            background: #fffdf5;
+            border: 1px solid #f0d9a8;
+            border-left: 4px solid #d97706;
+            border-radius: 12px;
+            padding: 1.25rem 1.4rem;
+        }
+
+        .glass-card h3 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #7c2d12;
+            margin: 0 0 0.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .glass-card p { font-size: 0.8rem; color: #92703a; margin: 0; line-height: 1.55; }
+
+        .btn-glass {
+            margin-top: 0.9rem;
+            background: #d97706;
+            color: white;
+            border: none;
+            border-radius: 7px;
+            padding: 0.5rem 0.95rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-glass:hover  { background: #b45309; }
+        .btn-glass:disabled { background: #d6d3d1; cursor: not-allowed; }
+
+        .glass-form { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.7rem; }
+        .glass-form label { font-size: 0.78rem; font-weight: 600; color: #7c2d12; }
+        /* The page is content-box throughout, so a 100% width plus padding and
+           border would push these past the card edge. */
+        .glass-form input, .glass-form textarea { width: 100%; box-sizing: border-box; }
+        .glass-form textarea { min-height: 62px; resize: vertical; }
+
+        .glass-note {
+            font-size: 0.75rem;
+            color: #92703a;
+            background: #fdf3dd;
+            border-radius: 6px;
+            padding: 0.5rem 0.65rem;
+            line-height: 1.5;
+        }
+
+        .glass-msg { font-size: 0.8rem; line-height: 1.55; min-height: 1.2em; }
+        .glass-msg.error { color: #991b1b; }
+
+        /* The revealed key. Monospace and selectable — it is going to be copied
+           by someone under pressure, so it must be unambiguous to read. */
+        .glass-key {
+            margin-top: 0.9rem;
+            background: #0d0d0d;
+            border-radius: 8px;
+            padding: 0.9rem 1rem;
+        }
+
+        .glass-key-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #6DC52D;
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+        }
+
+        .glass-key-value {
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 0.95rem;
+            color: #ffffff;
+            word-break: break-all;
+            user-select: all;
+            line-height: 1.5;
+        }
+
+        .glass-locked {
+            font-size: 0.8rem;
+            color: #7c2d12;
+            background: #fdf3dd;
+            border-radius: 6px;
+            padding: 0.6rem 0.7rem;
+            line-height: 1.55;
+            margin-top: 0.9rem;
+        }
+
         /* ── Section panels ──────────────────────────────── */
         .section-panel {
             background: white;
@@ -425,6 +521,10 @@
                     <span>Known Issues</span>
                     <span class="sb-badge sb-badge--orange" id="sb-issues-pending" style="display:none"></span>
                 </a>
+                <a class="sidebar-item" id="nav-breakglass" onclick="navigateTo('section-breakglass')">
+                    <span>Break Glass</span>
+                    <span class="sb-badge sb-badge--orange" id="sb-breakglass" style="display:none"></span>
+                </a>
             </div>
 
             <div class="sidebar-footer">
@@ -452,6 +552,43 @@
                         </div>
                         <p class="login-error" id="login-error"></p>
                     </form>
+                </div>
+
+                <!-- Break glass. Hidden until the status endpoint says the
+                     cabinet is configured, so it never appears as a dead box. -->
+                <div class="glass-card hidden" id="glass-card">
+                    <h3>&#128680; Break glass in case of emergency</h3>
+                    <p id="glass-blurb">Emergency licence key. Opening this is recorded and the lab team is notified immediately.</p>
+
+                    <button type="button" class="btn-glass" id="glass-open-btn" onclick="showGlassForm()">Break glass</button>
+
+                    <form class="glass-form hidden" id="glass-form">
+                        <div>
+                            <label for="glass-password">Emergency password</label>
+                            <input type="password" id="glass-password" placeholder="Pre-agreed password" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="glass-name">Your name</label>
+                            <input type="text" id="glass-name" placeholder="e.g. John Smith" autocomplete="off">
+                        </div>
+                        <div>
+                            <label for="glass-reason">Why do you need it?</label>
+                            <textarea id="glass-reason" placeholder="e.g. Client demo at Heathrow, licence expired on site"></textarea>
+                        </div>
+                        <p class="glass-note">Your name, reason and the time are recorded permanently, and the key is released only once &mdash; after that the cabinet locks until the lab team reloads it.</p>
+                        <div>
+                            <button type="submit" class="btn-glass" id="glass-submit-btn">Release the key</button>
+                        </div>
+                        <p class="glass-msg" id="glass-msg"></p>
+                    </form>
+
+                    <div class="glass-key hidden" id="glass-key-box">
+                        <div class="glass-key-label" id="glass-key-label">Emergency licence key</div>
+                        <div class="glass-key-value" id="glass-key-value"></div>
+                        <button type="button" class="btn-glass" id="glass-copy-btn" style="margin-top:0.75rem;" onclick="copyGlassKey()">Copy key</button>
+                    </div>
+
+                    <div class="glass-locked hidden" id="glass-locked"></div>
                 </div>
             </div>
 
@@ -589,6 +726,41 @@
                         <div class="status" id="gotcha-status"></div>
                     </form>
                     <div id="gotchas-list" style="margin-top:1.5rem;border-top:1px solid #f0f2f5;padding-top:1.25rem;"></div>
+                </div>
+
+                <!-- Break Glass -->
+                <div class="section-panel hidden" id="section-breakglass">
+                    <div class="page-header">
+                        <h2>
+                            Break Glass
+                            <span class="section-header-badge badge--orange" id="breakglass-state-badge" style="display:none"></span>
+                        </h2>
+                        <p class="page-subtitle">The emergency licence key, available from the login page to anyone with the pre-agreed password. Released once, then locked until you load a replacement.</p>
+                    </div>
+
+                    <div id="breakglass-status"></div>
+
+                    <form id="breakglass-form" style="margin-top:1.5rem;border-top:1px solid #f0f2f5;padding-top:1.25rem;">
+                        <div class="form-grid">
+                            <div class="form-group full">
+                                <label for="bg-key">Licence key <span class="required">*</span></label>
+                                <input type="text" id="bg-key" placeholder="The key to hand out in an emergency" autocomplete="off">
+                            </div>
+                            <div class="form-group full">
+                                <label for="bg-label">Label</label>
+                                <input type="text" id="bg-label" placeholder="e.g. Crestron VC-4 emergency licence" autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="form-actions" style="margin-top:1rem;">
+                            <button type="submit" class="btn-submit" id="bg-save-btn" style="padding:0.5rem 1.25rem;font-size:0.85rem;">Load key &amp; arm</button>
+                        </div>
+                        <div class="status" id="breakglass-save-status"></div>
+                    </form>
+
+                    <div style="margin-top:1.5rem;border-top:1px solid #f0f2f5;padding-top:1.25rem;">
+                        <p style="font-size:0.75rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.6rem;">Audit trail</p>
+                        <div id="breakglass-log"></div>
+                    </div>
                 </div>
 
             </div>
