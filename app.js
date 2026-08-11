@@ -426,6 +426,34 @@ function submitReport(event) {
     document.getElementById('submit-form').reset();
 }
 
+// Prefers the server's own explanation ("Not a valid email address: ...") over
+// a generic failure, so a rejected address tells the user which one.
+async function serverError(res, fallback) {
+    try {
+        const body = await res.json();
+        return body && body.error ? body.error : fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+// ── Multi-address email fields ────────────────────────────────────────────
+// The request forms take a list so an approval — and later the published
+// report — reaches everyone who needs it. `multiple` only recognises commas,
+// but Outlook and Teams hand out address lists separated by semicolons, so
+// swap those as they are typed or pasted rather than failing validation on
+// something the user has every reason to think is a valid list.
+['bench-submitter-email', 'poc-submitter-email'].forEach(id => {
+    const field = document.getElementById(id);
+    if (!field) return;
+    field.addEventListener('input', () => {
+        if (!field.value.includes(';')) return;
+        const caret = field.selectionStart;
+        field.value = field.value.replace(/;/g, ',');
+        field.setSelectionRange(caret, caret);
+    });
+});
+
 // ── Request Bench Test Modal ──────────────────────────────────────────────
 function openBenchModal() {
     document.getElementById('bench-modal-overlay').classList.remove('hidden');
@@ -484,7 +512,7 @@ async function submitBenchRequest(event) {
             }, 2500);
         } else {
             msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
-            msg.textContent   = 'Failed to submit — please try again.';
+            msg.textContent   = await serverError(res, 'Failed to submit — please try again.');
         }
     } catch {
         msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
@@ -550,7 +578,7 @@ async function submitPoCRequest(event) {
             }, 2500);
         } else {
             msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
-            msg.textContent   = 'Failed to submit — please try again.';
+            msg.textContent   = await serverError(res, 'Failed to submit — please try again.');
         }
     } catch {
         msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';

@@ -104,6 +104,39 @@ function escapeHtml(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ── Recipient lists ───────────────────────────────────────────────────────
+// submitterEmail can hold several addresses: a requester usually wants their
+// PM or site lead copied on the approval and on the finished report. Stored as
+// a comma-separated string, which is exactly what nodemailer's `to` accepts,
+// so older single-address records pass through these helpers unchanged.
+const EMAIL_RE = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
+
+function splitEmailList(value) {
+    if (!value) return [];
+    return String(value).split(/[,;]/).map(e => e.trim()).filter(Boolean);
+}
+
+// Returns { emails, invalid } — deduped case-insensitively, original casing kept.
+function parseEmailList(value) {
+    const seen    = new Set();
+    const emails  = [];
+    const invalid = [];
+    for (const candidate of splitEmailList(value)) {
+        if (!EMAIL_RE.test(candidate)) { invalid.push(candidate); continue; }
+        const key = candidate.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        emails.push(candidate);
+    }
+    return { emails, invalid };
+}
+
+// Comma-separated string ready for `to:`, or null when there is nobody to mail.
+function emailListToHeader(value) {
+    const { emails } = parseEmailList(value);
+    return emails.length ? emails.join(', ') : null;
+}
+
 // ── Shared email helper ───────────────────────────────────────────────────
 async function sendEmail({ to, subject, text, html }) {
     const user = process.env.SMTP_USER;
@@ -377,7 +410,8 @@ function renderDigestEmailHtml(entries, frequency, sub) {
 
 // ── Request approval confirmation to submitter ────────────────────────────
 async function notifyRequestApproved(r) {
-    if (!r.submitterEmail) return;
+    const to = emailListToHeader(r.submitterEmail);
+    if (!to) return;
     const typeName = r.type === 'bench' ? 'Bench Test' : 'PoC';
     const dueDate  = r.dateEnd ? addWorkingDays(r.dateEnd, 5) : null;
 
@@ -397,7 +431,7 @@ async function notifyRequestApproved(r) {
     ].filter(Boolean);
 
     await sendEmail({
-        to:      r.submitterEmail,
+        to,
         subject: `Your ${typeName} Request Has Been Approved — PoC Lab`,
         text: [
             `Hi ${r.submitterName || 'there'},`,
@@ -453,14 +487,15 @@ function renderCompleteEmailHtml(r, entry, typeName) {
 }
 
 async function notifyRequestComplete(r, entry) {
-    if (!r.submitterEmail) {
+    const to = emailListToHeader(r.submitterEmail);
+    if (!to) {
         console.log(`[complete] no email on record for request "${r.jobName}" — not notified`);
         return;
     }
     const typeName = r.type === 'bench' ? 'Bench Test' : 'PoC';
 
     await sendEmail({
-        to:      r.submitterEmail,
+        to,
         subject: `Your report is ready: ${entry.title} — PoC Lab`,
         text: [
             `Hi ${r.submitterName || 'there'},`,
@@ -487,7 +522,7 @@ async function notifyRequestComplete(r, entry) {
         ].join('\n'),
         html: renderCompleteEmailHtml(r, entry, typeName),
     });
-    console.log(`[complete] report "${entry.title}" notified to ${r.submitterEmail} (request "${r.jobName}")`);
+    console.log(`[complete] report "${entry.title}" notified to ${to} (request "${r.jobName}")`);
 }
 
 // ── Known issue admin notification ───────────────────────────────────────
@@ -512,11 +547,13 @@ async function notifyNewKnownIssue(entry) {
 // skipEmail suppresses the generic notification for one address — used when
 // that person is getting the tailored "your report is ready" email instead, so
 // a requester who also subscribes doesn't receive two mails for one report.
-async function notifyInstantSubscribers(entry, skipEmail) {
-    const skip = skipEmail ? skipEmail.trim().toLowerCase() : null;
+// skipEmails is the request's recipient list — they have just had the fuller
+// "your report is ready" email, so they should not also get the generic one.
+async function notifyInstantSubscribers(entry, skipEmails) {
+    const skip = new Set(splitEmailList(skipEmails).map(e => e.toLowerCase()));
     const subscribers = activeSubscribers()
         .filter(s => s.frequency === 'instant')
-        .filter(s => !skip || s.email.trim().toLowerCase() !== skip);
+        .filter(s => !skip.has(s.email.trim().toLowerCase()));
     for (const sub of subscribers) {
         await sendEmail({
             to:      sub.email,
@@ -818,10 +855,20 @@ app.post('/api/requests', submitLimiter, async (req, res) => {
     if (!submitterName) return res.status(400).json({ error: 'submitterName is required' });
     if (!jobName)       return res.status(400).json({ error: 'jobName is required' });
 
+    // Email is optional, but a typo in it must not pass quietly — a dropped
+    // address means the approval and the published report never arrive, and
+    // nobody finds out until someone asks why they heard nothing.
+    const { emails, invalid } = parseEmailList(submitterEmail);
+    if (invalid.length) {
+        return res.status(400).json({
+            error: `Not a valid email address: ${invalid.join(', ')}. Separate multiple addresses with commas.`,
+        });
+    }
+
     const requests = readRequests();
     const entry = {
         id: generateId(),
-        type, submitterName, submitterEmail: submitterEmail || null,
+        type, submitterName, submitterEmail: emails.length ? emails.join(', ') : null,
         jobName, scope: scope || null, outcomes: outcomes || null,
         kit: kit || null, dateStart: dateStart || null, dateEnd: dateEnd || null,
         persons: persons || null,
