@@ -1207,10 +1207,13 @@ app.delete('/api/admin/subscribers/:token', requireAuth, (req, res) => {
 // ── Requests (public submit) ──────────────────────────────────────────────
 app.post('/api/requests', submitLimiter, async (req, res) => {
     if (req.body._hp) return res.status(200).json({ message: 'ok' });
-    const { type, submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons } = req.body || {};
+    const { type, submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons, termsAccepted, termsVersion } = req.body || {};
     if (!type || !['bench', 'poc'].includes(type)) return res.status(400).json({ error: 'type must be bench or poc' });
     if (!submitterName) return res.status(400).json({ error: 'submitterName is required' });
     if (!jobName)       return res.status(400).json({ error: 'jobName is required' });
+    // Checked in the browser too, but the acceptance is the record that lab
+    // access was granted on agreed terms — it cannot rest on a client tick.
+    if (termsAccepted !== true) return res.status(400).json({ error: 'The terms and conditions must be accepted.' });
 
     // Email is optional, but a typo in it must not pass quietly — a dropped
     // address means the approval and the published report never arrive, and
@@ -1229,6 +1232,9 @@ app.post('/api/requests', submitLimiter, async (req, res) => {
         jobName, scope: scope || null, outcomes: outcomes || null,
         kit: kit || null, dateStart: dateStart || null, dateEnd: dateEnd || null,
         persons: persons || null,
+        termsAccepted: true,
+        termsVersion: termsVersion ? String(termsVersion) : null,
+        termsAcceptedAt: new Date().toISOString(),
         submittedDate: new Date().toISOString().split('T')[0],
         status: 'pending',
     };

@@ -926,3 +926,118 @@ main {
     .modal-footer { padding: 0.75rem 1rem; }
     .date-range { grid-template-columns: 1fr; }
 }
+
+/* ── Terms & conditions consent ── */
+.terms-consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-left: 3px solid var(--brand-green);
+    border-radius: 6px;
+    padding: 0.75rem 0.9rem;
+}
+
+.terms-consent input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    margin-top: 0.12rem;
+    flex-shrink: 0;
+    accent-color: var(--brand-green);
+    cursor: pointer;
+}
+
+.terms-consent label {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #374151;
+    line-height: 1.5;
+    cursor: pointer;
+}
+
+/* A button rather than an anchor: it opens a modal, it does not navigate. */
+.terms-link {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: #4a9c1f;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.terms-link:hover { color: var(--brand-green); }
+
+/* Sits above the request modal it was opened from. */
+.terms-overlay { z-index: 400; }
+
+.modal--wide { max-width: 720px; }
+
+.terms-content {
+    gap: 0;
+    font-size: 0.875rem;
+    color: #374151;
+    line-height: 1.65;
+}
+
+.terms-content h3 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin: 1.25rem 0 0.35rem;
+}
+
+.terms-content > *:first-child { margin-top: 0; }
+
+.terms-content p { margin-bottom: 0.5rem; }
+
+.terms-content ul {
+    margin: 0 0 0.75rem 1.1rem;
+    padding: 0;
+}
+
+.terms-content li { margin-bottom: 0.3rem; }
+
+/* Hanging clause numbers, so the text of 6.10 lines up with the text of 6.1
+   the way it does in the source document. */
+.terms-clauses {
+    display: grid;
+    grid-template-columns: 2.4rem 1fr;
+    gap: 0.4rem 0.4rem;
+    margin-bottom: 0.25rem;
+}
+
+.terms-clauses .clause {
+    display: contents;
+}
+
+.clause-num {
+    font-weight: 700;
+    color: #4a9c1f;
+    font-size: 0.82rem;
+    padding-top: 0.06rem;
+}
+
+.terms-clauses .clause p { margin-bottom: 0; }
+
+.terms-content a {
+    color: #4a9c1f;
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+.terms-signoff {
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-top: 1rem;
+}
+
+.terms-footnote {
+    margin-top: 1.25rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid #e5e7eb;
+    font-size: 0.78rem;
+    color: #6b7280;
+}

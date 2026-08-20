@@ -454,6 +454,32 @@ async function serverError(res, fallback) {
     });
 });
 
+// ── Terms & conditions ────────────────────────────────────────────────────
+// Bump this whenever the wording in the terms modal changes — every request
+// stores the version its submitter agreed to, so an acceptance on file always
+// points at the text that was actually on screen at the time.
+const TERMS_VERSION = '2.1';
+
+document.addEventListener('DOMContentLoaded', () => {
+    const label = document.getElementById('terms-version-label');
+    if (label) label.textContent = TERMS_VERSION;
+});
+
+// Opens over the request modal rather than replacing it, so a half-completed
+// form is still there when the reader closes the terms again.
+function openTermsModal() {
+    document.getElementById('terms-modal-overlay').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeTermsModal(event) {
+    if (event && event.target !== document.getElementById('terms-modal-overlay')) return;
+    document.getElementById('terms-modal-overlay').classList.add('hidden');
+    // A request modal is usually still open underneath — only release the page
+    // scroll once nothing is left on top of it.
+    if (!document.querySelector('.modal-overlay:not(.hidden)')) document.body.style.overflow = '';
+}
+
 // ── Request Bench Test Modal ──────────────────────────────────────────────
 function openBenchModal() {
     document.getElementById('bench-modal-overlay').classList.remove('hidden');
@@ -483,11 +509,19 @@ async function submitBenchRequest(event) {
     const dateStart      = document.getElementById('bench-date-start').value;
     const dateEnd        = document.getElementById('bench-date-end').value;
     const persons        = document.getElementById('bench-persons').value.trim();
+    const termsAccepted  = document.getElementById('bench-terms').checked;
     const msg            = document.getElementById('bench-msg');
 
     if (!submitterName || !jobName) {
         msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
         msg.textContent   = 'Please fill in your name and a job name.';
+        return;
+    }
+
+    if (!termsAccepted) {
+        msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
+        msg.textContent   = 'Please read and accept the terms and conditions before submitting.';
+        document.getElementById('bench-terms').focus();
         return;
     }
 
@@ -498,7 +532,7 @@ async function submitBenchRequest(event) {
         const res = await fetch('/api/requests', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ type: 'bench', submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons, _hp: document.getElementById('hp-bench').value }),
+            body:    JSON.stringify({ type: 'bench', submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons, termsAccepted, termsVersion: TERMS_VERSION, _hp: document.getElementById('hp-bench').value }),
         });
 
         if (res.ok) {
@@ -549,11 +583,19 @@ async function submitPoCRequest(event) {
     const dateStart      = document.getElementById('poc-date-start').value;
     const dateEnd        = document.getElementById('poc-date-end').value;
     const persons        = document.getElementById('poc-persons').value.trim();
+    const termsAccepted  = document.getElementById('poc-terms').checked;
     const msg            = document.getElementById('poc-msg');
 
     if (!submitterName || !jobName) {
         msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
         msg.textContent   = 'Please fill in your name and a job name.';
+        return;
+    }
+
+    if (!termsAccepted) {
+        msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
+        msg.textContent   = 'Please read and accept the terms and conditions before submitting.';
+        document.getElementById('poc-terms').focus();
         return;
     }
 
@@ -564,7 +606,7 @@ async function submitPoCRequest(event) {
         const res = await fetch('/api/requests', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ type: 'poc', submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons, _hp: document.getElementById('hp-poc').value }),
+            body:    JSON.stringify({ type: 'poc', submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons, termsAccepted, termsVersion: TERMS_VERSION, _hp: document.getElementById('hp-poc').value }),
         });
 
         if (res.ok) {
@@ -793,6 +835,13 @@ async function submitGotchaReport(event) {
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+        // The terms sit on top of a request form — the first Escape should
+        // dismiss the reading pane, not discard what has been typed behind it.
+        const terms = document.getElementById('terms-modal-overlay');
+        if (terms && !terms.classList.contains('hidden')) {
+            closeTermsModal();
+            return;
+        }
         document.getElementById('submit-modal-overlay').classList.add('hidden');
         document.getElementById('bench-modal-overlay').classList.add('hidden');
         document.getElementById('poc-modal-overlay').classList.add('hidden');

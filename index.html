@@ -245,6 +245,15 @@
                         <input type="text" id="bench-persons" placeholder="e.g. Ashton Lindemann, John Smith">
                     </div>
 
+                    <div class="terms-consent">
+                        <input type="checkbox" id="bench-terms" aria-label="I agree to the PoC Lab terms and conditions">
+                        <label for="bench-terms">
+                            I confirm that I have read and agree to the
+                            <button type="button" class="terms-link" onclick="openTermsModal()">terms and conditions</button>
+                            of the PoC Lab. <span style="color:#ef4444">*</span>
+                        </label>
+                    </div>
+
                     <div id="bench-msg" style="display:none;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;margin-top:0.25rem;"></div>
                 </div>
                 <div class="modal-footer">
@@ -318,6 +327,15 @@
                         <input type="text" id="poc-persons" placeholder="e.g. Ashton Lindemann, John Smith">
                     </div>
 
+                    <div class="terms-consent">
+                        <input type="checkbox" id="poc-terms" aria-label="I agree to the PoC Lab terms and conditions">
+                        <label for="poc-terms">
+                            I confirm that I have read and agree to the
+                            <button type="button" class="terms-link" onclick="openTermsModal()">terms and conditions</button>
+                            of the PoC Lab. <span style="color:#ef4444">*</span>
+                        </label>
+                    </div>
+
                     <div id="poc-msg" style="display:none;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;margin-top:0.25rem;"></div>
                 </div>
                 <div class="modal-footer">
@@ -325,6 +343,129 @@
                     <button type="submit" class="modal-btn-submit">Submit Request</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Terms & Conditions Modal -->
+    <!-- Opens on top of whichever request modal is already open, so the form
+         behind it keeps everything the user has typed so far. -->
+    <div id="terms-modal-overlay" class="modal-overlay terms-overlay hidden" onclick="closeTermsModal(event)">
+        <div class="modal modal--wide">
+            <div class="modal-header">
+                <div>
+                    <h2>PoC Lab Terms &amp; Conditions</h2>
+                    <p>Version <span id="terms-version-label"></span> &middot; Effective 20 August 2026 — please read before submitting a request.</p>
+                </div>
+                <button class="modal-close" onclick="closeTermsModal()">&times;</button>
+            </div>
+            <div class="modal-body terms-content">
+                <!-- TERMS CONTENT START — v2.1 of "PoC Lab Booking T's & C's".
+                     Replace everything between these two markers when the terms
+                     change, and bump TERMS_VERSION in app.js so acceptances stay
+                     tied to the wording that was actually on screen. -->
+                <p>You will be asked to accept these terms when you submit a booking request for the PoC Lab. They apply to the booking as a whole, which means everyone named on it and not only the person who submits it.</p>
+                <p>Every request is reviewed by the lab team, and approval is at our discretion. Submitting a request does not give you access. That begins once we have approved your booking and issued an access code where one is needed.</p>
+
+                <h3>1. Conduct in the lab</h3>
+                <div class="terms-clauses">
+                    <div class="clause"><span class="clause-num">1.1</span><p>The PoC Lab is a shared working facility. Your booking gives you the use of the room for a period, rather than the run of it.</p></div>
+                    <div class="clause"><span class="clause-num">1.2</span><p>Please be considerate of anyone working in or near the lab. Test audio, general noise, floor space and bench space all have an effect on the people around you.</p></div>
+                    <div class="clause"><span class="clause-num">1.3</span><p>Look after the kit. Most of it will be used by other colleagues after you, and some of it is on loan or on its way to a client site.</p></div>
+                    <div class="clause"><span class="clause-num">1.4</span><p>The rules that apply everywhere else on site apply here too, including health and safety, fire, electrical safety and acceptable use. You will find them in the proAV employee handbook.</p></div>
+                    <div class="clause"><span class="clause-num">1.5</span><p>If anything is damaged, faulty or behaving oddly, please let us know at <a href="mailto:poc.lab@proav.com">poc.lab@proav.com</a> rather than leaving it for the next booking to find.</p></div>
+                </div>
+
+                <h3>2. Do not disrupt the infrastructure</h3>
+                <div class="terms-clauses">
+                    <div class="clause"><span class="clause-num">2.1</span><p>Your booking covers the kit, space and scope agreed for your session. It does not extend to anything else in the room.</p></div>
+                    <div class="clause"><span class="clause-num">2.2</span><p>Please do not alter, reconfigure, disconnect, re-patch or repurpose anything outside that scope. This includes the network, power, racks, control systems and any other permanent installation.</p></div>
+                    <div class="clause"><span class="clause-num">2.3</span><p>If your testing genuinely requires a change to something permanently installed, agree it with us beforehand.</p></div>
+                    <div class="clause"><span class="clause-num">2.4</span><p>Anything you do change for your session must be put back as you found it before you leave. That applies to configuration as much as to cabling.</p></div>
+                    <div class="clause"><span class="clause-num">2.5</span><p>Please do not remove kit from the lab, or bring kit in and leave it behind, without agreeing it with us first.</p></div>
+                </div>
+
+                <h3>3. Leave the room as you found it</h3>
+                <div class="terms-clauses">
+                    <div class="clause"><span class="clause-num">3.1</span><p>Kit goes back where you found it, powered down or left in its normal state as appropriate.</p></div>
+                    <div class="clause"><span class="clause-num">3.2</span><p>Cabling is restored. Anything you unplugged goes back, and anything you brought in leaves with you.</p></div>
+                    <div class="clause"><span class="clause-num">3.3</span><p>Packaging, rubbish, consumables and empties are taken out of the room.</p></div>
+                    <div class="clause"><span class="clause-num">3.4</span><p>Benches, surfaces and floor are left clear, so that the room is ready for the next booking.</p></div>
+                    <div class="clause"><span class="clause-num">3.5</span><p>If you run out of time to reset the room properly, tell us before you leave rather than leaving it for someone else to discover.</p></div>
+                </div>
+
+                <h3>4. Security and unauthorised access</h3>
+                <div class="terms-clauses">
+                    <div class="clause"><span class="clause-num">4.1</span><p>Where an access code is issued for your booking, it is issued to you personally. Please do not share it, forward it, write it down where others can see it, or pass it to anyone else, including the other people named on your booking. They come into the lab with you.</p></div>
+                    <div class="clause"><span class="clause-num">4.2</span><p>Only people named on the approved booking may be in the lab during your session. If someone else needs to join, ask us to add them to the booking first.</p></div>
+                    <div class="clause"><span class="clause-num">4.3</span><p>Please do not admit anyone who is not part of your approved booking, however reasonable the request may seem. Send them to us instead.</p></div>
+                    <div class="clause"><span class="clause-num">4.4</span><p>The lab must be secured whenever it is left unattended, however briefly, and at the end of your session. If you are the last person out, that falls to you.</p></div>
+                    <div class="clause"><span class="clause-num">4.5</span><p>Let us know promptly if an access code has been shared or may have been compromised, or if you find the lab unsecured or someone in it who should not be there.</p></div>
+                </div>
+
+                <h3>5. Responsibility sits with the booker</h3>
+                <div class="terms-clauses">
+                    <div class="clause"><span class="clause-num">5.1</span><p>The person who submits the booking, or who conducts the PoC, is accountable for the session as a whole.</p></div>
+                    <div class="clause"><span class="clause-num">5.2</span><p>That covers everyone they bring in, both their conduct in the lab and their compliance with these terms.</p></div>
+                    <div class="clause"><span class="clause-num">5.3</span><p>It covers the state of the room afterwards, whoever left it that way.</p></div>
+                    <div class="clause"><span class="clause-num">5.4</span><p>It covers any issue, loss or damage arising during the booking.</p></div>
+                    <div class="clause"><span class="clause-num">5.5</span><p>It covers the report for the session, even where the work itself was carried out by someone else. See clause 6.</p></div>
+                    <div class="clause"><span class="clause-num">5.6</span><p>Where something goes wrong we will raise it with the booker in the first instance. Not being aware of what someone else on the booking did does not remove that responsibility.</p></div>
+                    <div class="clause"><span class="clause-num">5.7</span><p>The dashboard holds a record of approved bookings, including who was named, the job, the dates and whether an access code was issued. It records what was approved rather than who attended.</p></div>
+                </div>
+
+                <h3>6. Reports, and what happens if one is not produced</h3>
+                <div class="terms-clauses">
+                    <div class="clause"><span class="clause-num">6.1</span><p>A report is due within 5 working days of the session end date. Your approval email confirms this and gives you the exact date. Nothing will chase you, so please treat that email as your reminder.</p></div>
+                    <div class="clause"><span class="clause-num">6.2</span><p>The report is written by the person who carried out the PoC or bench test, which is not always the person who booked the session.</p></div>
+                    <div class="clause"><span class="clause-num">6.3</span><p>Where those are two different people, the booker remains responsible for making sure the report is written, as set out in clause 5. Booking on someone else’s behalf means taking that on.</p></div>
+                    <div class="clause"><span class="clause-num">6.4</span><p>Reports are submitted using the Submit Report button on the dashboard. This opens a pre-formatted email to <a href="mailto:poc.lab@proav.com">poc.lab@proav.com</a>, and you attach your report document before sending it.</p></div>
+                    <div class="clause"><span class="clause-num">6.5</span><p>A request stays on our list until a report has been submitted and processed, so an outstanding report remains visible to us.</p></div>
+                    <div class="clause"><span class="clause-num">6.6</span><p>If no report is produced, the booker and everyone named on that booking may not book the lab again until a substantial report has been submitted.</p></div>
+                    <div class="clause"><span class="clause-num">6.7</span><p>This works from the names on the approved booking. Attendance is not recorded, so if you were named on a booking you took no part in, please tell us and we will take it into account.</p></div>
+                    <div class="clause"><span class="clause-num">6.8</span><p>By substantial we mean a genuine write-up: what you tested, how you tested it, what you found and what you concluded, in enough detail for a colleague who was not there to make use of it. A placeholder, a holding note or a single line confirming that something worked will not lift the restriction.</p></div>
+                    <div class="clause"><span class="clause-num">6.9</span><p>We decide whether a report meets that standard and when the restriction lifts. It is a judgement made by people rather than something the dashboard applies automatically.</p></div>
+                    <div class="clause"><span class="clause-num">6.10</span><p>These rules are applied with judgement. If something genuinely got in the way, such as a session cut short, kit that never arrived or someone moving on partway through, please tell us, ideally before the deadline, and we will take it into account. A short agreed extension is rarely a problem.</p></div>
+                    <div class="clause"><span class="clause-num">6.11</span><p>If you disagree with a decision made under this clause, you can take it to the Senior Engineering Manager, who has oversight of the PoC Lab team.</p></div>
+                    <div class="clause"><span class="clause-num">6.12</span><p>Sessions run by the PoC Lab team itself are managed internally and sit outside this clause.</p></div>
+                </div>
+
+                <h3>7. Confidentiality</h3>
+                <div class="terms-clauses">
+                    <div class="clause"><span class="clause-num">7.1</span><p>The lab normally holds infrastructure and test kit. Anything covered by a manufacturer or supplier NDA is taken out of the room before a guest booking, or kept secured and watched by the lab team.</p></div>
+                    <div class="clause"><span class="clause-num">7.2</span><p>Where NDA kit is present during your session, everyone with access to it will already have signed the relevant agreement. That agreement governs the kit, and where it is stricter than anything written here it takes precedence. Please do not photograph or record it.</p></div>
+                    <div class="clause"><span class="clause-num">7.3</span><p>The confidential material you are most likely to come across is client work: designs, configurations, IP schemes, credentials and drawings from live jobs, including someone else’s session.</p></div>
+                    <div class="clause"><span class="clause-num">7.4</span><p>Treat anything in the lab that is not your own work as confidential. That includes kit on the bench and anything left on screens, whiteboards or paper. Inside proAV, discuss it only with people who need to know. Outside proAV, not at all.</p></div>
+                    <div class="clause"><span class="clause-num">7.5</span><p>Please do not copy, export or take away client data, configurations or credentials beyond what your own session requires, and remove whatever you did take once the session is over.</p></div>
+                    <div class="clause"><span class="clause-num">7.6</span><p>Please do not photograph or record anything that is not your own work without asking us first. Photographs of your own work are for your write-up and for internal use, and nothing goes to a client, a manufacturer or anywhere public.</p></div>
+                    <div class="clause"><span class="clause-num">7.7</span><p>Client credentials, configurations and data must not be left on lab kit at the end of your session. Clearing them down is part of leaving the room as you found it, as set out in clause 3.</p></div>
+                    <div class="clause"><span class="clause-num">7.8</span><p>Reports stay inside proAV. Report documents are held on proAV’s SharePoint and linked from the dashboard catalogue, and the company’s policies on handling company information apply to them. Please do not send a report, or its contents, outside the business.</p></div>
+                    <div class="clause"><span class="clause-num">7.9</span><p>Every report is checked and published by the lab team, and client names and sensitive detail are removed before it goes into the catalogue. Write on the basis that it will be read across the business, and flag anything you know to be sensitive so that it is not missed.</p></div>
+                    <div class="clause"><span class="clause-num">7.10</span><p>If you think confidential material has been seen, copied, shared or taken by someone who should not have it, please tell us straight away. Raising it early is always better than hoping it did not matter.</p></div>
+                    <div class="clause"><span class="clause-num">7.11</span><p>These obligations do not end when your session does.</p></div>
+                </div>
+
+                <h3>8. Use of the lab AI accounts</h3>
+                <div class="terms-clauses">
+                    <div class="clause"><span class="clause-num">8.1</span><p>The PoC Lab PC carries two AI accounts. They belong to the lab team rather than to any individual, and they are shared between everyone who uses the lab. They have been approved by the Information Systems department under the AI Policy’s approval pathway. We will sign you in. You will not be given the credentials, and you should not try to reach the accounts by any other route.</p></div>
+                    <div class="clause"><span class="clause-num">8.2</span><p>proAV’s Artificial Intelligence (AI) Policy (version 1.0, 19 March 2026) applies to these accounts in full. Nothing here relaxes it, and where the two differ the AI Policy takes precedence. Being signed in by someone else does not change what you are permitted to do, and the mandatory GenAI training that every employee completes (18.0) applies here as it does anywhere else.</p></div>
+                    <div class="clause"><span class="clause-num">8.3</span><p>Client material does not go into these accounts. The AI Policy prohibits entering un-sanitised client project files, configurations or system schematics, configurations proprietary to clients, and client drawings, schematics or architecture diagrams that would allow a client system to be reconstructed (5.3.2). It also prohibits inputting client or third-party production security or network configurations (5.3.5).</p></div>
+                    <div class="clause"><span class="clause-num">8.4</span><p>A good deal of what a PoC or bench test produces falls into those categories. Where you do use AI, strip out client-identifying detail and work from isolated snippets rather than whole configurations (13.3).</p></div>
+                    <div class="clause"><span class="clause-num">8.5</span><p>Restricted data, which covers client-identifiable data, client configurations, personal data and commercially sensitive information, must not be entered at all unless it has been approved through the AI Policy’s approval pathway (13.1). Our agreement is not that approval.</p></div>
+                    <div class="clause"><span class="clause-num">8.6</span><p>Check what comes back. AI output must be reviewed and validated by a qualified person before it is used (14.3), and anything you submit is treated as your own work (8.0). That applies to your report as much as to a configuration.</p></div>
+                    <div class="clause"><span class="clause-num">8.7</span><p>Use of these accounts is attributable. They do not carry your name, but the dashboard records who was booked into the lab and when, and activity on the accounts can be matched back to that. proAV also reserves the right to monitor prompts and outputs on approved tools (17.0). Please work on the basis that what you do on them can be traced to you.</p></div>
+                    <div class="clause"><span class="clause-num">8.8</span><p>Start a fresh conversation rather than picking up someone else’s, and do not read back through history left from an earlier session.</p></div>
+                    <div class="clause"><span class="clause-num">8.9</span><p>Let us know when you have finished so that the account can be signed out. Please do not leave a session open behind you.</p></div>
+                    <div class="clause"><span class="clause-num">8.10</span><p>Report any AI-related incident immediately to <a href="mailto:AI_incidents@proav.com">AI_incidents@proav.com</a> (17.3), and tell us as well. This includes suspected data exposure, prompt injection, unsafe output and policy breaches, whether your own or someone else’s.</p></div>
+                    <div class="clause"><span class="clause-num">8.11</span><p>A breach of the AI Policy is dealt with under that policy, which provides for disciplinary action (19.0). That sits outside these terms and outside our hands.</p></div>
+                </div>
+                <p>If you have a question about any of this, or about something that does not quite fit what you need to do, please get in touch at <a href="mailto:poc.lab@proav.com">poc.lab@proav.com</a> before you book.</p>
+                <p class="terms-signoff">The proAV PoC Lab Team</p>
+                <p class="terms-footnote">Version 2.1 &middot; Effective 20 August 2026. These terms may be updated, and the version shown at the point of booking is the one that applies.</p>
+                <!-- TERMS CONTENT END -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn-submit" onclick="closeTermsModal()">Close</button>
+            </div>
         </div>
     </div>
 
