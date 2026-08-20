@@ -18,6 +18,7 @@ function showAdminForm() {
     navigateTo(SECTIONS.includes(stored) ? stored : 'section-add');
     loadEntries();
     loadRequests();
+    loadAccessLog();
     loadRequestOptions();
     loadSubscribers();
     loadGotchas();
@@ -485,6 +486,123 @@ async function loadRequestOptions() {
     }
 }
 
+// ── Access log ────────────────────────────────────────────────────────────
+// Read-only by design. Entries are written by the backend when a booking is
+// approved, so there is nothing to edit here — a record you can amend from a
+// browser tab is not much of a record.
+
+function accessLogRange() {
+    const from = document.getElementById('accesslog-from').value;
+    const to   = document.getElementById('accesslog-to').value;
+    const qs   = new URLSearchParams();
+    if (from) qs.set('from', from);
+    if (to)   qs.set('to', to);
+    return qs.toString();
+}
+
+function clearAccessLogRange() {
+    document.getElementById('accesslog-from').value = '';
+    document.getElementById('accesslog-to').value   = '';
+    loadAccessLog();
+}
+
+async function loadAccessLog() {
+    const list = document.getElementById('accesslog-list');
+    list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">Loading...</p>';
+
+    try {
+        const qs  = accessLogRange();
+        const res = await fetch(`/api/admin/access-log${qs ? '?' + qs : ''}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (res.status === 401) { logout(); return; }
+
+        const rows = await res.json();
+        updateBadge('accesslog-count-badge', rows.length, rows.length > 0);
+        updateBadge('sb-accesslog',          rows.length, rows.length > 0);
+        document.getElementById('accesslog-export').disabled = rows.length === 0;
+
+        if (rows.length === 0) {
+            list.innerHTML = qs
+                ? '<p style="color:#6b7280;font-size:0.85rem;">No lab access in that date range.</p>'
+                : '<p style="color:#6b7280;font-size:0.85rem;">No guest access logged yet. Approving a booking records it here.</p>';
+            return;
+        }
+
+        list.innerHTML = '';
+        rows.forEach(e => list.appendChild(buildAccessLogRow(e)));
+    } catch {
+        list.innerHTML = '<p style="color:#991b1b;font-size:0.85rem;">Failed to load the access log.</p>';
+    }
+}
+
+function buildAccessLogRow(e) {
+    const wrap = document.createElement('div');
+
+    const typeBg  = e.type === 'bench' ? '#dbeafe' : '#ede9fe';
+    const typeFg  = e.type === 'bench' ? '#1d4ed8' : '#6d28d9';
+    const typeStr = e.type === 'bench' ? 'Bench Test' : 'PoC';
+
+    const dates = e.dateStart
+        ? `${e.dateStart}${e.dateEnd && e.dateEnd !== e.dateStart ? ' → ' + e.dateEnd : ''}`
+        : 'No dates given';
+
+    // Backfilled rows predate the log and have no approval time. Saying so is
+    // better than showing a date that was never actually recorded.
+    const approved = e.approvedAt
+        ? `Approved ${e.approvedAt.split('T')[0]}`
+        : 'Approved before logging began';
+
+    wrap.innerHTML = `
+        <div class="entry-row">
+            <div class="entry-row-info">
+                <span class="entry-row-title">
+                    <span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:0.72rem;font-weight:700;background:${typeBg};color:${typeFg};margin-right:0.4rem;">${typeStr}</span>
+                    ${escapeHtml(e.name || 'Unknown')}
+                </span>
+                <span class="entry-row-meta">${escapeHtml(dates)} · ${escapeHtml(e.jobName || '—')}</span>
+                <span class="entry-row-meta">${escapeHtml(e.email || 'No email')}${e.persons ? ' · With: ' + escapeHtml(e.persons) : ''}</span>
+                <span class="entry-row-meta">Booked ${e.bookedOn || '—'} · ${approved}${e.accessCodeIssued ? ' · Access code issued' : ''}</span>
+            </div>
+        </div>`;
+    return wrap;
+}
+
+// The export is behind the same bearer token as everything else, so it cannot
+// be a plain link — fetch it, then hand the browser the blob to save.
+async function exportAccessLog(btn) {
+    const original = btn.textContent;
+    btn.disabled    = true;
+    btn.textContent = 'Exporting...';
+
+    try {
+        const qs  = accessLogRange();
+        const res = await fetch(`/api/admin/access-log.csv${qs ? '?' + qs : ''}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (res.status === 401) { logout(); return; }
+        if (!res.ok) throw new Error('export failed');
+
+        const disposition = res.headers.get('Content-Disposition') || '';
+        const match       = disposition.match(/filename="([^"]+)"/);
+        const blob        = await res.blob();
+        const url         = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href     = url;
+        a.download = match ? match[1] : 'poc-lab-access-log.csv';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    } catch {
+        alert('Could not export the access log. Please try again.');
+    } finally {
+        btn.disabled    = false;
+        btn.textContent = original;
+    }
+}
+
 // ── Requests ──────────────────────────────────────────────────────────────
 async function loadRequests() {
     const list = document.getElementById('requests-list');
@@ -605,7 +723,9 @@ async function approveRequest(id, btn) {
             body:    JSON.stringify({ accessCode })
         });
         if (res.status === 401) { logout(); return; }
-        if (res.ok) { loadRequests(); loadRequestOptions(); }
+        // Approving is what writes the access log, so refresh it here too —
+        // otherwise the log looks stale until the next full page load.
+        if (res.ok) { loadRequests(); loadRequestOptions(); loadAccessLog(); }
         else { alert('Failed to approve.'); btn.disabled = false; }
     } catch {
         alert('Network error.');
@@ -1011,7 +1131,7 @@ async function saveBreakGlass(event) {
     }
 }
 
-const SECTIONS = ['section-add', 'section-entries', 'section-requests', 'section-subscribers', 'section-issues', 'section-breakglass'];
+const SECTIONS = ['section-add', 'section-entries', 'section-requests', 'section-accesslog', 'section-subscribers', 'section-issues', 'section-breakglass'];
 
 function navigateTo(id) {
     SECTIONS.forEach(sid => document.getElementById(sid).classList.add('hidden'));

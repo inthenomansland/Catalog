@@ -61,7 +61,17 @@ const SUBSCRIBERS_FILE  = path.join(DATA_DIR, 'subscribers.json');
 const DIGEST_STATE_FILE = path.join(DATA_DIR, 'digest-state.json');
 const REQUESTS_FILE     = path.join(DATA_DIR, 'requests.json');
 const BREAKGLASS_FILE   = path.join(DATA_DIR, 'breakglass.json');
+const ACCESS_LOG_FILE   = path.join(DATA_DIR, 'access-log.json');
 const SITE_URL          = 'https://poc-lab.av.proav.cloud';
+
+// Who the access log ignores. The log answers "which guests were in the lab,
+// and when" — the lab team's own time in their own lab is not access worth
+// auditing, and including it makes every export something to explain. Anyone
+// not listed here is a guest. Emails match against every address on a request;
+// names must match in full, so a visitor sharing a first name is still logged.
+const LOG_EXCLUDE = (process.env.LOG_EXCLUDE ||
+    'Ashton Lindemann, ashton.lindemann@proav.com, poc.lab@proav.com')
+    .split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const JWT_SECRET     = process.env.JWT_SECRET;
@@ -99,6 +109,7 @@ if (!fs.existsSync(SUBSCRIBERS_FILE))  fs.writeFileSync(SUBSCRIBERS_FILE, '[]', 
 if (!fs.existsSync(DIGEST_STATE_FILE)) fs.writeFileSync(DIGEST_STATE_FILE, JSON.stringify({ lastWeekly: null, lastMonthly: null }), 'utf8');
 if (!fs.existsSync(REQUESTS_FILE))     fs.writeFileSync(REQUESTS_FILE,     '[]', 'utf8');
 if (!fs.existsSync(BREAKGLASS_FILE))   fs.writeFileSync(BREAKGLASS_FILE,   JSON.stringify(EMPTY_CABINET, null, 2), 'utf8');
+if (!fs.existsSync(ACCESS_LOG_FILE))   fs.writeFileSync(ACCESS_LOG_FILE,   '[]', 'utf8');
 
 function readData()             { return JSON.parse(fs.readFileSync(DATA_FILE,         'utf8')); }
 function writeData(data)        { fs.writeFileSync(DATA_FILE,         JSON.stringify(data, null, 2), 'utf8'); }
@@ -117,6 +128,12 @@ function readRequests()         { return JSON.parse(fs.readFileSync(REQUESTS_FIL
 function writeRequests(data)    { fs.writeFileSync(REQUESTS_FILE,     JSON.stringify(data, null, 2), 'utf8'); }
 function readCabinet()          { return { ...EMPTY_CABINET, ...JSON.parse(fs.readFileSync(BREAKGLASS_FILE, 'utf8')) }; }
 function writeCabinet(data)     { fs.writeFileSync(BREAKGLASS_FILE,   JSON.stringify(data, null, 2), 'utf8'); }
+
+// The access log is its own file rather than a view over requests.json on the
+// fly, because requests get deleted once they are dealt with and the record of
+// who was in the lab has to outlive the paperwork that produced it.
+function readAccessLog()        { return JSON.parse(fs.readFileSync(ACCESS_LOG_FILE,  'utf8')); }
+function writeAccessLog(data)   { fs.writeFileSync(ACCESS_LOG_FILE,   JSON.stringify(data, null, 2), 'utf8'); }
 
 function generateToken() { return crypto.randomBytes(32).toString('hex'); }
 function generateId()    { return crypto.randomBytes(8).toString('hex'); }
@@ -150,6 +167,125 @@ function clientIp(req) {
     writeRequests(requests);
     console.log(`Backfilled ids on ${missing.length} request(s)`);
 })();
+
+// ── Lab access log ────────────────────────────────────────────────────────
+// A booking becomes a lab session at the moment it is approved: that is the
+// point the dates are confirmed and the guest is told to come in. Pending
+// requests are somebody's suggestion, not access, and never reach the log.
+
+function isLabOwner(name, email) {
+    const n = String(name || '').trim().toLowerCase();
+    if (n && LOG_EXCLUDE.includes(n)) return true;
+    // submitterEmail can hold several comma-separated addresses; if the lab
+    // team is on it at all, the booking is theirs.
+    return String(email || '')
+        .split(',')
+        .map(e => e.trim().toLowerCase())
+        .filter(Boolean)
+        .some(e => LOG_EXCLUDE.includes(e));
+}
+
+// Upsert, not append: approving twice (to correct an access code, say) must
+// amend the one session rather than record the guest as having visited twice.
+function recordLabAccess(r) {
+    if (isLabOwner(r.submitterName, r.submitterEmail)) {
+        console.log(`[access-log] skipped — "${r.jobName}" is a lab team booking`);
+        return null;
+    }
+
+    const log   = readAccessLog();
+    const entry = {
+        id:        generateId(),
+        requestId: r.id,
+        type:      r.type,
+        jobName:   r.jobName,
+        name:      r.submitterName || null,
+        email:     r.submitterEmail || null,
+        persons:   r.persons || null,
+        dateStart: r.dateStart || null,
+        dateEnd:   r.dateEnd || null,
+        bookedOn:  r.submittedDate || null,
+        approvedAt: new Date().toISOString(),
+        // The code itself stays out of the log. An export of this file is meant
+        // to be shareable, and a spreadsheet of live door codes is not.
+        accessCodeIssued: Boolean(r.accessCode),
+    };
+
+    const existing = log.findIndex(e => e.requestId === r.id);
+    if (existing === -1) log.push(entry);
+    else log[existing] = { ...log[existing], ...entry, id: log[existing].id, approvedAt: log[existing].approvedAt };
+
+    writeAccessLog(log);
+    console.log(`[access-log] ${existing === -1 ? 'logged' : 'updated'}: ${entry.name} — "${entry.jobName}"`);
+    return entry;
+}
+
+// One-off migration for bookings approved before the log existed. Without it
+// the log starts empty and reads as though nobody had ever used the lab.
+(function backfillAccessLog() {
+    const log = readAccessLog();
+    if (log.length > 0) return;
+
+    const approved = readRequests().filter(r =>
+        ['approved', 'completed'].includes(r.status) && !isLabOwner(r.submitterName, r.submitterEmail));
+    if (approved.length === 0) return;
+
+    writeAccessLog(approved.map(r => ({
+        id:        generateId(),
+        requestId: r.id,
+        type:      r.type,
+        jobName:   r.jobName,
+        name:      r.submitterName || null,
+        email:     r.submitterEmail || null,
+        persons:   r.persons || null,
+        dateStart: r.dateStart || null,
+        dateEnd:   r.dateEnd || null,
+        bookedOn:  r.submittedDate || null,
+        // These predate the log, so the approval time is genuinely unknown —
+        // recorded as null rather than backdated to a time nobody observed.
+        approvedAt: null,
+        accessCodeIssued: Boolean(r.accessCode),
+    })));
+    console.log(`Backfilled access log with ${approved.length} previously approved booking(s)`);
+})();
+
+// Excel on Windows needs both of these or it opens the export as a single
+// column and mangles any accented name in it.
+const BOM  = String.fromCharCode(0xFEFF);
+const CRLF = String.fromCharCode(13, 10);
+
+// A cell beginning =, +, - or @ is run as a formula when the CSV is opened in
+// Excel, and these names come off a public form. Prefixing a quote makes the
+// cell inert without changing what it reads as.
+function csvCell(value) {
+    if (value === null || value === undefined) return '';
+    let s = String(value);
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+    return `"${s.replace(/"/g, '""')}"`;
+}
+
+function accessLogToCsv(rows) {
+    const header = ['Date in', 'Date out', 'Guest', 'Email', 'Others attending',
+                    'Booking', 'Type', 'Booked on', 'Approved on', 'Access code issued'];
+    const lines = [header.map(csvCell).join(',')];
+    rows.forEach(e => lines.push([
+        e.dateStart, e.dateEnd || e.dateStart, e.name, e.email, e.persons,
+        e.jobName, e.type === 'bench' ? 'Bench Test' : 'PoC',
+        e.bookedOn, e.approvedAt ? e.approvedAt.split('T')[0] : '',
+        e.accessCodeIssued ? 'Yes' : 'No',
+    ].map(csvCell).join(',')));
+    return BOM + lines.join(CRLF) + CRLF;
+}
+
+// Sessions in date order, oldest first, optionally clipped to a window. Falls
+// back to the booked date so a session with no dates still lands somewhere
+// sensible instead of vanishing from every filtered export.
+function accessLogRows({ from, to } = {}) {
+    return readAccessLog()
+        .map(e => ({ ...e, _when: e.dateStart || e.bookedOn || '' }))
+        .filter(e => (!from || e._when >= from) && (!to || e._when <= to))
+        .sort((a, b) => a._when.localeCompare(b._when));
+}
 
 function requireAuth(req, res, next) {
     const auth = req.headers.authorization;
@@ -1119,8 +1255,29 @@ app.put('/api/requests/:id/approve', requireAuth, async (req, res) => {
     r.accessCode = accessCode || null;
     writeRequests(requests);
     console.log(`[admin] request approved: "${r.jobName}" (${r.submitterEmail || 'no email'})`);
+    recordLabAccess(r);
     notifyRequestApproved(r).catch(() => {});
     res.json(r);
+});
+
+// ── Lab access log (admin read) ───────────────────────────────────────────
+app.get('/api/admin/access-log', requireAuth, (req, res) => {
+    const { from, to } = req.query;
+    res.json(accessLogRows({ from, to }).reverse());
+});
+
+// ── Lab access log (admin export) ─────────────────────────────────────────
+// Served as a download rather than JSON so it drops straight into Excel. The
+// admin panel fetches it with the bearer token and saves the blob — this is
+// behind requireAuth like everything else, so it is not a shareable link.
+app.get('/api/admin/access-log.csv', requireAuth, (req, res) => {
+    const { from, to } = req.query;
+    const rows  = accessLogRows({ from, to });
+    const stamp = new Date().toISOString().split('T')[0];
+    const range = from || to ? `-${from || 'start'}_to_${to || stamp}` : '';
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="poc-lab-access-log${range || '-' + stamp}.csv"`);
+    res.send(accessLogToCsv(rows));
 });
 
 // ── Requests (admin delete) ───────────────────────────────────────────────

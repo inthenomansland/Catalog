@@ -365,6 +365,19 @@
         .status.error   { display: block; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
         .status.loading { display: block; background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
 
+        /* ── Access log ──────────────────────────────────── */
+        .accesslog-controls {
+            display: flex;
+            align-items: flex-end;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            padding-bottom: 1rem;
+            margin-bottom: 0.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .accesslog-controls .form-group { width: 160px; }
+
         /* ── Entry rows ──────────────────────────────────── */
         .entry-row {
             display: flex;
@@ -512,6 +525,10 @@
                 <a class="sidebar-item" id="nav-requests" onclick="navigateTo('section-requests')">
                     <span>Requests</span>
                     <span class="sb-badge sb-badge--orange" id="sb-requests-pending" style="display:none"></span>
+                </a>
+                <a class="sidebar-item" id="nav-accesslog" onclick="navigateTo('section-accesslog')">
+                    <span>Access Log</span>
+                    <span class="sb-badge sb-badge--gray" id="sb-accesslog" style="display:none"></span>
                 </a>
                 <a class="sidebar-item" id="nav-subscribers" onclick="navigateTo('section-subscribers')">
                     <span>Subscribers</span>
@@ -686,6 +703,32 @@
                         <p class="page-subtitle">Bench Test and PoC requests submitted via the catalogue, pending your review.</p>
                     </div>
                     <div id="requests-list"></div>
+                </div>
+
+                <!-- Access Log -->
+                <div class="section-panel hidden" id="section-accesslog">
+                    <div class="page-header">
+                        <h2>
+                            Access Log
+                            <span class="section-header-badge badge--gray" id="accesslog-count-badge" style="display:none"></span>
+                        </h2>
+                        <p class="page-subtitle">Guest access to the lab, recorded when a booking is approved. Your own bookings are not logged.</p>
+                    </div>
+
+                    <div class="accesslog-controls">
+                        <div class="form-group">
+                            <label for="accesslog-from">From</label>
+                            <input type="date" id="accesslog-from" onchange="loadAccessLog()">
+                        </div>
+                        <div class="form-group">
+                            <label for="accesslog-to">To</label>
+                            <input type="date" id="accesslog-to" onchange="loadAccessLog()">
+                        </div>
+                        <button type="button" class="btn-submit" id="accesslog-export" onclick="exportAccessLog(this)">Export CSV</button>
+                        <button type="button" class="btn-logout" onclick="clearAccessLogRange()">Clear dates</button>
+                    </div>
+
+                    <div id="accesslog-list"></div>
                 </div>
 
                 <!-- Subscribers -->

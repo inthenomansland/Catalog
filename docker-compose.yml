@@ -13,6 +13,9 @@ services:
       # Shared emergency password for the break-glass licence key cabinet.
       # Optional — leave unset and the break-glass box stays hidden.
       - BREAKGLASS_PASSWORD=${BREAKGLASS_PASSWORD}
+      # Names/emails kept out of the guest access log — the lab team's own
+      # bookings. Optional; leave unset to use the built-in default.
+      - LOG_EXCLUDE=${LOG_EXCLUDE}
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASS=${SMTP_PASS}
