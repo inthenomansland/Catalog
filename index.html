@@ -354,16 +354,16 @@
             <div class="modal-header">
                 <div>
                     <h2>PoC Lab Terms &amp; Conditions</h2>
-                    <p>Version <span id="terms-version-label"></span> &middot; Effective 20 August 2026 — please read before submitting a request.</p>
+                    <p>Version <span id="terms-version-label"></span> &middot; Effective 16 September 2026 — please read before submitting a request.</p>
                 </div>
                 <button class="modal-close" onclick="closeTermsModal()">&times;</button>
             </div>
-            <div class="modal-body terms-content">
-                <!-- TERMS CONTENT START — v2.1 of "PoC Lab Booking T's & C's".
+            <div class="modal-body terms-content" data-version="2.2">
+                <!-- TERMS CONTENT START — v2.2 of "PoC Lab Booking T's & C's".
                      Replace everything between these two markers when the terms
-                     change, and bump TERMS_VERSION in app.js so acceptances stay
+                     change, and bump data-version above so acceptances stay
                      tied to the wording that was actually on screen. -->
-                <p>You will be asked to accept these terms when you submit a booking request for the PoC Lab. They apply to the booking as a whole, which means everyone named on it and not only the person who submits it.</p>
+                <p>You will be asked to accept these terms when you submit a booking request for the PoC Lab, and when you sign in as a visitor. They apply to the booking as a whole, which means everyone named on it and not only the person who submits it. Visitors agree to them for their own time in the lab.</p>
                 <p>Every request is reviewed by the lab team, and approval is at our discretion. Submitting a request does not give you access. That begins once we have approved your booking and issued an access code where one is needed.</p>
 
                 <h3>1. Conduct in the lab</h3>
@@ -410,7 +410,7 @@
                     <div class="clause"><span class="clause-num">5.4</span><p>It covers any issue, loss or damage arising during the booking.</p></div>
                     <div class="clause"><span class="clause-num">5.5</span><p>It covers the report for the session, even where the work itself was carried out by someone else. See clause 6.</p></div>
                     <div class="clause"><span class="clause-num">5.6</span><p>Where something goes wrong we will raise it with the booker in the first instance. Not being aware of what someone else on the booking did does not remove that responsibility.</p></div>
-                    <div class="clause"><span class="clause-num">5.7</span><p>The dashboard holds a record of approved bookings, including who was named, the job, the dates and whether an access code was issued. It records what was approved rather than who attended.</p></div>
+                    <div class="clause"><span class="clause-num">5.7</span><p>The dashboard holds a record of approved bookings, including who was named, the job, the dates and whether an access code was issued. Visitors to the lab are also asked to sign in, and the dashboard records who signed in, when, and which booking they came for. See clause 9 for how that information is handled.</p></div>
                 </div>
 
                 <h3>6. Reports, and what happens if one is not produced</h3>
@@ -421,7 +421,7 @@
                     <div class="clause"><span class="clause-num">6.4</span><p>Reports are submitted using the Submit Report button on the dashboard. This opens a pre-formatted email to <a href="mailto:poc.lab@proav.com">poc.lab@proav.com</a>, and you attach your report document before sending it.</p></div>
                     <div class="clause"><span class="clause-num">6.5</span><p>A request stays on our list until a report has been submitted and processed, so an outstanding report remains visible to us.</p></div>
                     <div class="clause"><span class="clause-num">6.6</span><p>If no report is produced, the booker and everyone named on that booking may not book the lab again until a substantial report has been submitted.</p></div>
-                    <div class="clause"><span class="clause-num">6.7</span><p>This works from the names on the approved booking. Attendance is not recorded, so if you were named on a booking you took no part in, please tell us and we will take it into account.</p></div>
+                    <div class="clause"><span class="clause-num">6.7</span><p>This works from the names on the approved booking. Visitor sign-ins show who attended, but not everyone who takes part in a session will have signed in, so if you were named on a booking you took no part in, please tell us and we will take it into account.</p></div>
                     <div class="clause"><span class="clause-num">6.8</span><p>By substantial we mean a genuine write-up: what you tested, how you tested it, what you found and what you concluded, in enough detail for a colleague who was not there to make use of it. A placeholder, a holding note or a single line confirming that something worked will not lift the restriction.</p></div>
                     <div class="clause"><span class="clause-num">6.9</span><p>We decide whether a report meets that standard and when the restriction lifts. It is a judgement made by people rather than something the dashboard applies automatically.</p></div>
                     <div class="clause"><span class="clause-num">6.10</span><p>These rules are applied with judgement. If something genuinely got in the way, such as a session cut short, kit that never arrived or someone moving on partway through, please tell us, ideally before the deadline, and we will take it into account. A short agreed extension is rarely a problem.</p></div>
@@ -452,15 +452,29 @@
                     <div class="clause"><span class="clause-num">8.4</span><p>A good deal of what a PoC or bench test produces falls into those categories. Where you do use AI, strip out client-identifying detail and work from isolated snippets rather than whole configurations (13.3).</p></div>
                     <div class="clause"><span class="clause-num">8.5</span><p>Restricted data, which covers client-identifiable data, client configurations, personal data and commercially sensitive information, must not be entered at all unless it has been approved through the AI Policy’s approval pathway (13.1). Our agreement is not that approval.</p></div>
                     <div class="clause"><span class="clause-num">8.6</span><p>Check what comes back. AI output must be reviewed and validated by a qualified person before it is used (14.3), and anything you submit is treated as your own work (8.0). That applies to your report as much as to a configuration.</p></div>
-                    <div class="clause"><span class="clause-num">8.7</span><p>Use of these accounts is attributable. They do not carry your name, but the dashboard records who was booked into the lab and when, and activity on the accounts can be matched back to that. proAV also reserves the right to monitor prompts and outputs on approved tools (17.0). Please work on the basis that what you do on them can be traced to you.</p></div>
+                    <div class="clause"><span class="clause-num">8.7</span><p>Use of these accounts is attributable. They do not carry your name, but the dashboard records who was booked into the lab, who signed in and when, and activity on the accounts can be matched back to that. proAV also reserves the right to monitor prompts and outputs on approved tools (17.0). Please work on the basis that what you do on them can be traced to you.</p></div>
                     <div class="clause"><span class="clause-num">8.8</span><p>Start a fresh conversation rather than picking up someone else’s, and do not read back through history left from an earlier session.</p></div>
                     <div class="clause"><span class="clause-num">8.9</span><p>Let us know when you have finished so that the account can be signed out. Please do not leave a session open behind you.</p></div>
                     <div class="clause"><span class="clause-num">8.10</span><p>Report any AI-related incident immediately to <a href="mailto:AI_incidents@proav.com">AI_incidents@proav.com</a> (17.3), and tell us as well. This includes suspected data exposure, prompt injection, unsafe output and policy breaches, whether your own or someone else’s.</p></div>
                     <div class="clause"><span class="clause-num">8.11</span><p>A breach of the AI Policy is dealt with under that policy, which provides for disciplinary action (19.0). That sits outside these terms and outside our hands.</p></div>
                 </div>
+
+                <h3>9. Your personal data</h3>
+                <div class="terms-clauses">
+                    <div class="clause"><span class="clause-num">9.1</span><p>proAV is the data controller for the personal information collected through the PoC Lab dashboard. We handle it in line with the UK General Data Protection Regulation (UK GDPR), the Data Protection Act 2018 and proAV’s own data protection policies.</p></div>
+                    <div class="clause"><span class="clause-num">9.2</span><p>When you make a booking we record your name, email address, the job, the dates, the people named on the booking, whether an access code was issued, and the version of these terms you accepted and when.</p></div>
+                    <div class="clause"><span class="clause-num">9.3</span><p>When you sign in as a visitor we record your name, company, email address, phone number, the booking or reason for your visit, who you are meeting if you tell us, the date and time you signed in, and the version of these terms you accepted.</p></div>
+                    <div class="clause"><span class="clause-num">9.4</span><p>We use this information to manage bookings and access to the lab, keep the lab and the people in it safe and secure, account for everyone on site in an emergency, contact you about your booking or visit, and look into any incident, damage or breach of these terms.</p></div>
+                    <div class="clause"><span class="clause-num">9.5</span><p>We rely on proAV’s legitimate interests in running a safe, secure and properly managed facility as our lawful basis for processing this information. Where recording who is on site is needed to meet health and safety obligations, we also rely on that legal obligation.</p></div>
+                    <div class="clause"><span class="clause-num">9.6</span><p>We only ask for what we need for those purposes. Please do not enter sensitive personal information, such as health details, into any of the dashboard’s forms.</p></div>
+                    <div class="clause"><span class="clause-num">9.7</span><p>The information is held securely and can only be seen by the PoC Lab team. It is shared within proAV only where there is a genuine need, such as a health and safety, security or disciplinary matter, and is not sold or passed to third parties for marketing. It may be disclosed where the law requires it.</p></div>
+                    <div class="clause"><span class="clause-num">9.8</span><p>We keep the information for no longer than is necessary for the purposes above, in line with proAV’s data retention policy, and then delete it securely.</p></div>
+                    <div class="clause"><span class="clause-num">9.9</span><p>You have the right to ask for a copy of the personal information we hold about you, and to ask us to correct it, delete it, restrict how we use it, or object to our using it. Some of these rights are limited where we need to keep a record, for example for security or legal reasons. To make a request, contact us at <a href="mailto:poc.lab@proav.com">poc.lab@proav.com</a> and we will pass it to the right person in proAV.</p></div>
+                    <div class="clause"><span class="clause-num">9.10</span><p>If you are unhappy with how your information has been handled, please tell us first so that we can put it right. You also have the right to complain to the Information Commissioner’s Office (ICO) at <a href="https://ico.org.uk" target="_blank" rel="noopener">ico.org.uk</a>.</p></div>
+                </div>
                 <p>If you have a question about any of this, or about something that does not quite fit what you need to do, please get in touch at <a href="mailto:poc.lab@proav.com">poc.lab@proav.com</a> before you book.</p>
                 <p class="terms-signoff">The proAV PoC Lab Team</p>
-                <p class="terms-footnote">Version 2.1 &middot; Effective 20 August 2026. These terms may be updated, and the version shown at the point of booking is the one that applies.</p>
+                <p class="terms-footnote">Version 2.2 &middot; Effective 16 September 2026. These terms may be updated, and the version shown at the point of booking or sign-in is the one that applies.</p>
                 <!-- TERMS CONTENT END -->
             </div>
             <div class="modal-footer">

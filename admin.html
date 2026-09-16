@@ -378,6 +378,34 @@
 
         .accesslog-controls .form-group { width: 160px; }
 
+        /* Visitors signed in today — the fire roll call. */
+        .onsite-panel {
+            background: #f7fdf2;
+            border: 1px solid #d9f0c6;
+            border-left: 3px solid #6DC52D;
+            border-radius: 8px;
+            padding: 0.85rem 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .onsite-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #1a1a2e;
+        }
+
+        .onsite-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6DC52D;
+            box-shadow: 0 0 0 3px rgba(109,197,45,0.25);
+        }
+
+        .onsite-count { font-size: 0.8rem; color: #6b7280; }
+
         /* ── Entry rows ──────────────────────────────────── */
         .entry-row {
             display: flex;
@@ -712,7 +740,16 @@
                             Access Log
                             <span class="section-header-badge badge--gray" id="accesslog-count-badge" style="display:none"></span>
                         </h2>
-                        <p class="page-subtitle">Guest access to the lab, recorded when a booking is approved. Your own bookings are not logged.</p>
+                        <p class="page-subtitle">Guest access to the lab — bookings when they are approved (your own are not logged), and visitors when they sign in at <a href="/visit" target="_blank" style="color:#4a9c1f;font-weight:600;">/visit</a>.</p>
+                    </div>
+
+                    <div class="onsite-panel">
+                        <div class="onsite-header">
+                            <span class="onsite-dot" aria-hidden="true"></span>
+                            <strong>Signed in today</strong>
+                            <span class="onsite-count" id="onsite-count"></span>
+                        </div>
+                        <div id="onsite-list"></div>
                     </div>
 
                     <div class="accesslog-controls">

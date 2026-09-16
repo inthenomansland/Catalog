@@ -455,10 +455,11 @@ async function serverError(res, fallback) {
 });
 
 // ── Terms & conditions ────────────────────────────────────────────────────
-// Bump this whenever the wording in the terms modal changes — every request
+// Bump data-version on the terms content in index.html whenever the wording
+// changes — every request (and visitor sign-in, which reads the same markup)
 // stores the version its submitter agreed to, so an acceptance on file always
 // points at the text that was actually on screen at the time.
-const TERMS_VERSION = '2.1';
+const TERMS_VERSION = document.querySelector('.terms-content').dataset.version;
 
 document.addEventListener('DOMContentLoaded', () => {
     const label = document.getElementById('terms-version-label');

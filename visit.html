@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Not linked from the dashboard on purpose: people who need it are told
+         the address. Keep it out of search results for the same reason. -->
+    <meta name="robots" content="noindex, nofollow">
+    <title>PoC Lab — Visitor Sign-in</title>
+    <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        [hidden] { display: none !important; }
+        .hp-field { position:absolute; left:-9999px; top:-9999px; width:0; height:0; opacity:0; pointer-events:none; }
+
+        .visit-header-inner { justify-content: center; text-align: center; }
+
+        .visit-wrap {
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 0 1rem 3rem;
+        }
+
+        .visit-card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .visit-card-header {
+            background: var(--brand-black);
+            border-bottom: 3px solid var(--brand-green);
+            padding: 1.1rem 1.5rem;
+        }
+
+        .visit-card-header h1 { font-size: 1.15rem; color: #fff; }
+
+        .visit-body {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.1rem;
+        }
+
+        .visit-intro { font-size: 0.9rem; color: #4b5563; line-height: 1.5; }
+
+        .visit-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.1rem;
+        }
+
+        .visit-body .modal-field input,
+        .visit-body .modal-field select {
+            font-size: 1rem;
+            padding: 0.7rem 0.85rem;
+        }
+
+        .visit-body .modal-field select:focus {
+            outline: none;
+            border-color: var(--brand-green);
+            box-shadow: 0 0 0 3px rgba(109,197,45,0.15);
+        }
+
+        /* Bigger target than the request forms — this gets tapped on a tablet */
+        .visit-body .terms-consent input[type="checkbox"] { width: 1.25rem; height: 1.25rem; margin-top: 0; }
+        .visit-body .terms-consent label { font-size: 0.9rem; }
+
+        .req { color: #ef4444; }
+        .opt { color: #9ca3af; font-weight: 400; }
+
+        .visit-privacy {
+            font-size: 0.78rem;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .visit-submit {
+            background: var(--brand-green);
+            color: var(--brand-black);
+            border: none;
+            border-radius: 8px;
+            padding: 0.95rem 1rem;
+            font-size: 1.05rem; font-weight: 700; line-height: 1;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .visit-submit:hover    { background: var(--brand-green-hover); }
+        .visit-submit:disabled { opacity: 0.6; cursor: wait; }
+
+        .visit-msg {
+            padding: 0.75rem 1rem;
+            border-radius: 7px;
+            font-size: 0.9rem;
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        /* Confirmation screen */
+        .visit-done {
+            padding: 3rem 1.5rem;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .visit-done-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: #ecfccb;
+            color: #3f7a12;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .visit-done h2 { font-size: 1.4rem; color: #1a1a2e; }
+        .visit-done p  { font-size: 0.95rem; color: #4b5563; line-height: 1.5; max-width: 26rem; }
+
+        .visit-done-next {
+            margin-top: 0.75rem;
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 0.7rem 1.4rem;
+            font-size: 0.95rem; font-weight: 600; line-height: 1;
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        .visit-done-countdown { font-size: 0.78rem; color: #9ca3af; }
+
+        .visit-help {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-top: 1.25rem;
+        }
+
+        .visit-help a { color: #4a9c1f; font-weight: 600; }
+
+        @media (max-width: 640px) {
+            .visit-wrap { margin-top: 1rem; }
+            .visit-row  { grid-template-columns: 1fr; }
+            .header-text p { display: block; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-inner visit-header-inner">
+            <div class="header-text">
+                <div class="header-brand" style="justify-content:center;">
+                    <img src="logo-header.svg" alt="proAV" class="header-logo">
+                </div>
+                <p>Proof of Concept Lab — Visitor Sign-in</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="visit-wrap">
+        <div class="visit-card">
+            <div class="visit-card-header">
+                <h1>Visitor sign-in</h1>
+            </div>
+
+            <form id="signin-form" class="visit-body" onsubmit="submitSignIn(event)" autocomplete="off" novalidate>
+                <p class="visit-intro">Welcome to the PoC Lab. Please sign in so we know who is on site.</p>
+                <input class="hp-field" type="text" id="hp-visit" autocomplete="off" tabindex="-1" aria-hidden="true">
+
+                <div class="modal-field">
+                    <label for="visit-name">Full name <span class="req">*</span></label>
+                    <input type="text" id="visit-name" placeholder="e.g. Jane Smith" maxlength="200">
+                </div>
+
+                <div class="modal-field">
+                    <label for="visit-company">Company <span class="req">*</span></label>
+                    <input type="text" id="visit-company" placeholder="e.g. Acme Ltd" maxlength="200">
+                </div>
+
+                <div class="visit-row">
+                    <div class="modal-field">
+                        <label for="visit-email">Email <span class="req">*</span></label>
+                        <input type="email" id="visit-email" placeholder="you@company.com" maxlength="200" inputmode="email">
+                    </div>
+                    <div class="modal-field">
+                        <label for="visit-phone">Phone <span class="req">*</span></label>
+                        <input type="tel" id="visit-phone" placeholder="e.g. 07700 900123" maxlength="20" inputmode="tel">
+                    </div>
+                </div>
+
+                <div class="modal-field">
+                    <label for="visit-booking">What are you here for? <span class="req">*</span></label>
+                    <select id="visit-booking" onchange="toggleOther()">
+                        <option value="">Loading bookings...</option>
+                    </select>
+                </div>
+
+                <div class="modal-field" id="visit-purpose-field" hidden>
+                    <label for="visit-purpose">Reason for your visit <span class="req">*</span></label>
+                    <input type="text" id="visit-purpose" placeholder="e.g. Product demo, site meeting" maxlength="200">
+                </div>
+
+                <div class="modal-field">
+                    <label for="visit-host">Who are you meeting? <span class="opt">(optional)</span></label>
+                    <input type="text" id="visit-host" placeholder="e.g. Ashton Lindemann" maxlength="200">
+                </div>
+
+                <div class="terms-consent">
+                    <input type="checkbox" id="visit-terms" aria-label="I agree to the PoC Lab terms and conditions">
+                    <label for="visit-terms">
+                        I confirm that I have read and agree to the
+                        <button type="button" class="terms-link" onclick="openTermsModal()">terms and conditions</button>
+                        of the PoC Lab. <span class="req">*</span>
+                    </label>
+                </div>
+
+                <p class="visit-privacy">
+                    Your details are kept in the PoC Lab access log for site security and fire safety,
+                    and are only visible to the lab team.
+                </p>
+
+                <div id="signin-msg" class="visit-msg" hidden></div>
+
+                <button type="submit" class="visit-submit" id="signin-btn">Sign in</button>
+            </form>
+
+            <!-- Confirmation -->
+            <div id="visit-done" class="visit-done" hidden>
+                <div class="visit-done-icon" aria-hidden="true">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <h2 id="visit-done-title"></h2>
+                <p id="visit-done-text"></p>
+                <button type="button" class="visit-done-next" onclick="resetKiosk()">Done</button>
+                <span class="visit-done-countdown" id="visit-done-countdown"></span>
+            </div>
+        </div>
+
+        <p class="visit-help">Need help? Ask a member of the lab team or email <a href="mailto:poc.lab@proav.com">poc.lab@proav.com</a></p>
+    </main>
+
+    <!-- Terms & Conditions Modal. The wording itself is not copied here: it is
+         read from the dashboard's own terms panel when this page loads, so the
+         terms only ever need editing in index.html. -->
+    <div id="terms-modal-overlay" class="modal-overlay terms-overlay hidden" onclick="closeTermsModal(event)">
+        <div class="modal modal--wide">
+            <div class="modal-header">
+                <div>
+                    <h2>PoC Lab Terms &amp; Conditions</h2>
+                    <p id="terms-subtitle">Please read before signing in.</p>
+                </div>
+                <button class="modal-close" onclick="closeTermsModal()">&times;</button>
+            </div>
+            <div class="modal-body terms-content" id="terms-body">
+                <p>Loading the terms...</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn-submit" onclick="closeTermsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="visit.js"></script>
+</body>
+</html>

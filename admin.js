@@ -488,8 +488,8 @@ async function loadRequestOptions() {
 
 // ── Access log ────────────────────────────────────────────────────────────
 // Read-only by design. Entries are written by the backend when a booking is
-// approved, so there is nothing to edit here — a record you can amend from a
-// browser tab is not much of a record.
+// approved or a visitor signs in, so there is nothing to edit here — a record
+// you can amend from a browser tab is not much of a record.
 
 function accessLogRange() {
     const from = document.getElementById('accesslog-from').value;
@@ -525,18 +525,66 @@ async function loadAccessLog() {
         if (rows.length === 0) {
             list.innerHTML = qs
                 ? '<p style="color:#6b7280;font-size:0.85rem;">No lab access in that date range.</p>'
-                : '<p style="color:#6b7280;font-size:0.85rem;">No guest access logged yet. Approving a booking records it here.</p>';
-            return;
+                : '<p style="color:#6b7280;font-size:0.85rem;">No guest access logged yet. Approving a booking or a visitor signing in records it here.</p>';
+        } else {
+            list.innerHTML = '';
+            rows.forEach(e => list.appendChild(buildAccessLogRow(e)));
         }
-
-        list.innerHTML = '';
-        rows.forEach(e => list.appendChild(buildAccessLogRow(e)));
     } catch {
         list.innerHTML = '<p style="color:#991b1b;font-size:0.85rem;">Failed to load the access log.</p>';
     }
+
+    loadOnSite();
 }
 
+// Local date, not UTC — the admin panel is used in the UK, and after midnight
+// BST toISOString() would still be reporting yesterday.
+function todayLocal() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function timeOf(iso) {
+    return iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+}
+
+// Always today, whatever dates the log below is filtered to — this panel is
+// the answer to "who is in the building", not part of the search. Visitors do
+// not sign out; everyone signed in today is assumed to be here until the day ends.
+async function loadOnSite() {
+    const list  = document.getElementById('onsite-list');
+    const count = document.getElementById('onsite-count');
+    try {
+        const today = todayLocal();
+        const res   = await fetch(`/api/admin/access-log?from=${today}&to=${today}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (res.status === 401) { logout(); return; }
+
+        const onSite = (await res.json()).filter(e => e.source === 'visit');
+        count.textContent = onSite.length ? `${onSite.length} visitor${onSite.length === 1 ? '' : 's'}` : '';
+
+        if (onSite.length === 0) {
+            list.innerHTML = '<p style="color:#6b7280;font-size:0.82rem;margin-top:0.4rem;">Nobody has signed in today.</p>';
+            return;
+        }
+        list.innerHTML = '';
+        onSite.forEach(e => list.appendChild(buildAccessLogRow(e)));
+    } catch {
+        list.innerHTML = '<p style="color:#991b1b;font-size:0.82rem;margin-top:0.4rem;">Could not load today\'s visitors.</p>';
+    }
+}
+
+// The admin panel often sits open on the lab PC, so keep the roll call current
+// without a reload. Only while the section is actually on screen.
+setInterval(() => {
+    const section = document.getElementById('section-accesslog');
+    if (authToken && section && !section.classList.contains('hidden')) loadOnSite();
+}, 60 * 1000);
+
 function buildAccessLogRow(e) {
+    if (e.source === 'visit') return buildVisitRow(e);
+
     const wrap = document.createElement('div');
 
     const typeBg  = e.type === 'bench' ? '#dbeafe' : '#ede9fe';
@@ -563,6 +611,32 @@ function buildAccessLogRow(e) {
                 <span class="entry-row-meta">${escapeHtml(dates)} · ${escapeHtml(e.jobName || '—')}</span>
                 <span class="entry-row-meta">${escapeHtml(e.email || 'No email')}${e.persons ? ' · With: ' + escapeHtml(e.persons) : ''}</span>
                 <span class="entry-row-meta">Booked ${e.bookedOn || '—'} · ${approved}${e.accessCodeIssued ? ' · Access code issued' : ''}</span>
+            </div>
+        </div>`;
+    return wrap;
+}
+
+function buildVisitRow(e) {
+    const wrap = document.createElement('div');
+
+    const here = e.jobName
+        ? `${escapeHtml(e.jobName)} (${e.type === 'bench' ? 'Bench Test' : 'PoC'})`
+        : escapeHtml(e.purpose || '—');
+
+    const terms = e.termsAccepted
+        ? `Terms v${escapeHtml(e.termsVersion || '?')} accepted`
+        : '<span style="color:#c2410c;font-weight:600;">Terms not accepted</span>';
+
+    wrap.innerHTML = `
+        <div class="entry-row">
+            <div class="entry-row-info">
+                <span class="entry-row-title">
+                    <span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:0.72rem;font-weight:700;background:#ecfccb;color:#3f7a12;margin-right:0.4rem;">Visitor</span>
+                    ${escapeHtml(e.name || 'Unknown')}${e.company ? ` <span style="font-weight:400;color:#6b7280;">· ${escapeHtml(e.company)}</span>` : ''}
+                </span>
+                <span class="entry-row-meta">${escapeHtml(e.dateStart || '—')} · Signed in ${timeOf(e.signedInAt)} · ${terms}</span>
+                <span class="entry-row-meta">Here for: ${here}${e.host ? ' · Meeting: ' + escapeHtml(e.host) : ''}</span>
+                <span class="entry-row-meta">${escapeHtml(e.email || 'No email')} · ${escapeHtml(e.phone || 'No phone')}</span>
             </div>
         </div>`;
     return wrap;

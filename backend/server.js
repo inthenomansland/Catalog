@@ -50,8 +50,23 @@ const breakGlassLimiter = rateLimit({
     message:             { error: 'Too many attempts. Emergency access is locked for an hour — contact the lab team on poc.lab@proav.com.' },
 });
 
+// Visitor sign-in runs on a tablet at the lab door, and a PoC can bring a group
+// of a dozen through in a few minutes — all from the office's one egress IP.
+// The request-form limit would turn the fourth visitor away, so this gets its
+// own, much looser bucket.
+const visitLimiter = rateLimit({
+    windowMs:        15 * 60 * 1000,
+    max:             60,
+    standardHeaders: true,
+    legacyHeaders:   false,
+    message:         { error: 'Too many sign-ins from this device. Please ask a member of the lab team for help.' },
+});
+
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Short URL for the QR code on the lab door.
+app.get('/visit', (req, res) => res.sendFile(path.join(__dirname, 'public', 'visit.html')));
 
 const DATA_DIR          = '/app/data';
 const DATA_FILE         = path.join(DATA_DIR, 'data.json');
@@ -211,7 +226,9 @@ function recordLabAccess(r) {
         accessCodeIssued: Boolean(r.accessCode),
     };
 
-    const existing = log.findIndex(e => e.requestId === r.id);
+    // Visitor sign-ins carry the requestId of the booking they came for, so
+    // they must be skipped here or re-approving would overwrite a visit.
+    const existing = log.findIndex(e => e.requestId === r.id && e.source !== 'visit');
     if (existing === -1) log.push(entry);
     else log[existing] = { ...log[existing], ...entry, id: log[existing].id, approvedAt: log[existing].approvedAt };
 
@@ -264,27 +281,98 @@ function csvCell(value) {
     return `"${s.replace(/"/g, '""')}"`;
 }
 
+// The container runs on UTC, but "today" and a sign-in time have to mean what
+// they meant at the lab door — an hour out for half the year otherwise.
+function londonDate(d = new Date()) {
+    return d.toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
+}
+
+function londonTime(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' });
+}
+
 function accessLogToCsv(rows) {
-    const header = ['Date in', 'Date out', 'Guest', 'Email', 'Others attending',
-                    'Booking', 'Type', 'Booked on', 'Approved on', 'Access code issued'];
+    const header = ['Date in', 'Date out', 'Source', 'Guest', 'Company', 'Email', 'Phone',
+                    'Others attending', 'Booking', 'Type', 'Reason for visit', 'Meeting',
+                    'Signed in', 'Terms accepted', 'Booked on', 'Approved on', 'Access code issued'];
     const lines = [header.map(csvCell).join(',')];
-    rows.forEach(e => lines.push([
-        e.dateStart, e.dateEnd || e.dateStart, e.name, e.email, e.persons,
-        e.jobName, e.type === 'bench' ? 'Bench Test' : 'PoC',
-        e.bookedOn, e.approvedAt ? e.approvedAt.split('T')[0] : '',
-        e.accessCodeIssued ? 'Yes' : 'No',
-    ].map(csvCell).join(',')));
+    rows.forEach(e => {
+        const visit = e.source === 'visit';
+        lines.push([
+            e.dateStart, e.dateEnd || e.dateStart,
+            visit ? 'Visitor sign-in' : 'Booking approval',
+            e.name, e.company, e.email, e.phone, e.persons,
+            e.jobName, e.type ? (e.type === 'bench' ? 'Bench Test' : 'PoC') : '',
+            e.purpose, e.host,
+            londonTime(e.signedInAt),
+            visit ? (e.termsAccepted ? `Yes (v${e.termsVersion || '?'})` : 'No') : '',
+            e.bookedOn, e.approvedAt ? e.approvedAt.split('T')[0] : '',
+            visit ? '' : (e.accessCodeIssued ? 'Yes' : 'No'),
+        ].map(csvCell).join(','));
+    });
     return BOM + lines.join(CRLF) + CRLF;
 }
 
 // Sessions in date order, oldest first, optionally clipped to a window. Falls
 // back to the booked date so a session with no dates still lands somewhere
-// sensible instead of vanishing from every filtered export.
+// sensible instead of vanishing from every filtered export. The window is
+// matched on the day alone; sign-in time only orders visits within a day.
 function accessLogRows({ from, to } = {}) {
     return readAccessLog()
-        .map(e => ({ ...e, _when: e.dateStart || e.bookedOn || '' }))
-        .filter(e => (!from || e._when >= from) && (!to || e._when <= to))
-        .sort((a, b) => a._when.localeCompare(b._when));
+        .map(e => ({ ...e, _day: e.dateStart || e.bookedOn || '' }))
+        .filter(e => (!from || e._day >= from) && (!to || e._day <= to))
+        .sort((a, b) => a._day.localeCompare(b._day) || (a.signedInAt || '').localeCompare(b.signedInAt || ''));
+}
+
+// ── Visitor sign-in ───────────────────────────────────────────────────────
+// Bookings say who was expected; sign-ins say who actually walked in, which is
+// the half of the record that matters in a fire roll call or a security query.
+// Both live in the one access log, told apart by source: 'visit'.
+
+// Bookings a visitor can say they are here for: approved, and running today.
+// A day's grace either side covers dates that slipped after approval without
+// the dropdown filling up with every booking the lab has ever taken.
+function bookingsOpenForVisits() {
+    const today     = londonDate();
+    const yesterday = londonDate(new Date(Date.now() - 86400000));
+    const tomorrow  = londonDate(new Date(Date.now() + 86400000));
+    return readRequests()
+        .filter(r => r.status === 'approved' && r.dateStart)
+        .filter(r => r.dateStart <= tomorrow && (r.dateEnd || r.dateStart) >= yesterday)
+        .sort((a, b) => {
+            // Today's bookings first, then by name — the one they want is at the top.
+            const aNow = a.dateStart <= today && (a.dateEnd || a.dateStart) >= today;
+            const bNow = b.dateStart <= today && (b.dateEnd || b.dateStart) >= today;
+            return (bNow - aNow) || String(a.jobName).localeCompare(String(b.jobName));
+        });
+}
+
+// There is no sign-out: anyone signed in is taken to have left by the end of
+// the day. So "signed in today" is the whole of what on-site means.
+function visitsTodayFor(log, email) {
+    const key = email.toLowerCase();
+    return log.filter(e => e.source === 'visit' &&
+        e.dateStart === londonDate() && String(e.email || '').toLowerCase() === key);
+}
+
+async function notifyVisitorArrived(v) {
+    await sendEmail({
+        to:      'poc.lab@proav.com',
+        subject: `Visitor signed in: ${v.name}${v.company ? ` (${v.company})` : ''} — PoC Lab`,
+        text: [
+            `${v.name} has signed in at the PoC Lab at ${londonTime(v.signedInAt)}.`,
+            '',
+            `Company:  ${v.company || '—'}`,
+            `Email:    ${v.email   || '—'}`,
+            `Phone:    ${v.phone   || '—'}`,
+            `Here for: ${v.jobName || v.purpose || '—'}`,
+            `Meeting:  ${v.host    || '—'}`,
+            '',
+            'See who is on site in the admin panel:',
+            `${SITE_URL}/admin.html`,
+        ].join('\n'),
+    });
 }
 
 function requireAuth(req, res, next) {
@@ -1270,6 +1358,81 @@ app.put('/api/requests/:id/approve', requireAuth, async (req, res) => {
 app.get('/api/admin/access-log', requireAuth, (req, res) => {
     const { from, to } = req.query;
     res.json(accessLogRows({ from, to }).reverse());
+});
+
+// ── Visitor sign-in (public) ──────────────────────────────────────────────
+// Only an id and a name go out — this endpoint is on the open internet, and
+// who booked the lab, and when, is not for anyone passing by.
+app.get('/api/visit/bookings', (req, res) => {
+    res.json(bookingsOpenForVisits().map(r => ({
+        id:      r.id,
+        jobName: r.jobName,
+        type:    r.type,
+    })));
+});
+
+app.post('/api/visit/sign-in', visitLimiter, (req, res) => {
+    if (req.body._hp) return res.status(200).json({ message: 'ok' });
+    const clean = v => String(v || '').trim().slice(0, 200);
+    const name      = clean(req.body.name);
+    const company   = clean(req.body.company);
+    const email     = clean(req.body.email);
+    const phone     = clean(req.body.phone);
+    const host      = clean(req.body.host);
+    const purpose   = clean(req.body.purpose);
+    const requestId = clean(req.body.requestId);
+
+    if (!name)    return res.status(400).json({ error: 'Please enter your full name.' });
+    if (!company) return res.status(400).json({ error: 'Please enter the company you are from.' });
+    if (!EMAIL_RE.test(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
+    // Loose on purpose: visitors come from abroad and type numbers every which
+    // way. The check is only that there is a number someone could ring.
+    if (!/^\+?[\d\s()\-.]{7,20}$/.test(phone) || phone.replace(/\D/g, '').length < 7) {
+        return res.status(400).json({ error: 'Please enter a valid phone number.' });
+    }
+
+    let booking = null;
+    if (requestId) {
+        booking = bookingsOpenForVisits().find(r => r.id === requestId);
+        if (!booking) return res.status(400).json({ error: 'That booking is no longer open for sign-in. Please choose again.' });
+    } else if (!purpose) {
+        return res.status(400).json({ error: 'Please choose the booking you are here for, or tell us the reason for your visit.' });
+    }
+
+    // Same rule as bookings: being let into the lab rests on agreed terms, so
+    // the tick is enforced here and the version agreed to is kept with the visit.
+    if (req.body.termsAccepted !== true) return res.status(400).json({ error: 'The terms and conditions must be accepted.' });
+    const termsVersion = clean(req.body.termsVersion) || null;
+
+    // A second tap on the kiosk, or someone signing in again after lunch, must
+    // not put them in the roll call twice.
+    const log      = readAccessLog();
+    const existing = visitsTodayFor(log, email)[0];
+    if (existing) return res.json({ name: existing.name, signedInAt: existing.signedInAt, alreadySignedIn: true });
+
+    const now   = new Date();
+    const entry = {
+        id:          generateId(),
+        source:      'visit',
+        requestId:   booking ? booking.id      : null,
+        type:        booking ? booking.type    : null,
+        jobName:     booking ? booking.jobName : null,
+        purpose:     booking ? null : purpose,
+        name, company, email, phone,
+        host:        host || null,
+        dateStart:   londonDate(now),
+        dateEnd:     londonDate(now),
+        signedInAt:  now.toISOString(),
+        termsAccepted:   true,
+        termsVersion,
+        termsAcceptedAt: now.toISOString(),
+    };
+    log.push(entry);
+    writeAccessLog(log);
+    console.log(`[visit] signed in: ${entry.name} (${entry.company}) — ${entry.jobName || entry.purpose}`);
+    res.status(201).json({ name: entry.name, signedInAt: entry.signedInAt });
+
+    notifyVisitorArrived(entry).catch(err => console.error('[visit] alert failed:', err.message));
 });
 
 // ── Lab access log (admin export) ─────────────────────────────────────────
