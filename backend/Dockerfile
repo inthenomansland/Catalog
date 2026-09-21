@@ -4,7 +4,7 @@ WORKDIR /app
 COPY backend/package*.json ./
 RUN npm install --only=production
 
-COPY backend/server.js ./
+COPY backend/server.js backend/email-templates.js ./
 COPY data.json ./data-default.json
 
 # Copy frontend static files so the backend can serve them

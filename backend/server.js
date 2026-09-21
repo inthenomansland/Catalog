@@ -5,6 +5,13 @@ const jwt        = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const crypto     = require('crypto');
 const rateLimit  = require('express-rate-limit');
+const {
+    renderInstantEmailHtml,
+    renderDigestEmailHtml,
+    renderApprovalEmailHtml,
+    renderCompleteEmailHtml,
+    renderGlassBrokenEmailHtml,
+} = require('./email-templates');
 
 const app = express();
 app.use(express.json());
@@ -501,200 +508,6 @@ function addWorkingDays(dateStr, days) {
     return d.toISOString().split('T')[0];
 }
 
-// ── Shared HTML email chrome ──────────────────────────────────────────────
-// Table-based layout with inline styles throughout — this is what keeps it
-// rendering correctly in Outlook desktop, which ignores <style> blocks and
-// most modern CSS. All notification emails share this same header/footer
-// shell so they read as one consistent brand.
-function emailShell({ heading, intro, bodyHtml, footerHtml }) {
-    return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="color-scheme" content="light">
-<meta name="supported-color-schemes" content="light">
-</head>
-<body style="margin:0;padding:0;background:#f4f6f2;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f2;padding:32px 16px;">
-<tr><td align="center">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border:1px solid #dde2d8;border-radius:10px;overflow:hidden;">
-
-    <tr><td style="background:#0d0d0d;padding:22px 28px;border-bottom:4px solid #6DC52D;">
-        <img src="cid:proav-logo-mark" alt="proAV" width="108" height="26" style="display:inline-block;vertical-align:middle;height:26px;width:108px;border:0;">
-        <span style="font:400 12px/1 Segoe UI,Arial,sans-serif;color:#9aa2a0;margin-left:10px;vertical-align:middle;">PoC Lab Dashboard</span>
-    </td></tr>
-
-    <tr><td style="padding:28px;">
-        ${heading ? `<p style="margin:0 0 4px;font:700 20px/1.3 Segoe UI,Arial,sans-serif;color:#0d0d0d;">${heading}</p>` : ''}
-        ${intro   ? `<p style="margin:0 0 22px;font:400 14px/1.6 Segoe UI,Arial,sans-serif;color:#667085;">${intro}</p>` : ''}
-        ${bodyHtml}
-    </td></tr>
-
-    <tr><td style="padding:16px 28px;background:#f7f8f6;border-top:1px solid #eceff0;">
-        ${footerHtml}
-    </td></tr>
-
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
-}
-
-const emailFooterStandard = `
-    <p style="margin:0;font:400 12px/1.6 Segoe UI,Arial,sans-serif;color:#9aa2a0;">
-        proAV PoC Lab Team · <a href="${SITE_URL}" style="color:#9aa2a0;">${SITE_URL.replace(/^https?:\/\//, '')}</a>
-    </p>`;
-
-function emailFooterWithUnsubscribe(note, token) {
-    return `
-    <p style="margin:0 0 4px;font:400 12px/1.6 Segoe UI,Arial,sans-serif;color:#9aa2a0;">
-        proAV PoC Lab Team · <a href="${SITE_URL}" style="color:#9aa2a0;">${SITE_URL.replace(/^https?:\/\//, '')}</a>
-    </p>
-    <p style="margin:0;font:400 11px/1.6 Segoe UI,Arial,sans-serif;color:#b7bdb5;">
-        ${note} <a href="${SITE_URL}/?unsubscribe=${token}" style="color:#9aa2a0;">Unsubscribe</a>
-    </p>`;
-}
-
-// A single report as a compact branded card — reused by the instant and
-// digest subscriber emails. Test-type colours match the badges on the
-// live dashboard (Kit blue, Program green, Concept purple).
-function renderReportCardHtml(entry, { truncate } = {}) {
-    const typeColors = {
-        Kit:     { bg: '#dbeafe', fg: '#1d4ed8' },
-        Program: { bg: '#d1fae5', fg: '#065f46' },
-        Concept: { bg: '#ede9fe', fg: '#5b21b6' },
-    };
-    const tc = typeColors[entry.testType] || { bg: '#e5e7eb', fg: '#374151' };
-    const rawSummary = entry.summary || '';
-    const summary = truncate && rawSummary.length > 150
-        ? rawSummary.slice(0, 150) + '…'
-        : rawSummary;
-
-    return `
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eceff0;border-radius:8px;margin-bottom:14px;">
-            <tr><td style="padding:16px 18px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-                    <td style="font:700 15px/1.4 Segoe UI,Arial,sans-serif;color:#0d0d0d;">${escapeHtml(entry.title)}</td>
-                    <td align="right" style="white-space:nowrap;padding-left:10px;">
-                        <span style="display:inline-block;background:${tc.bg};color:${tc.fg};font:700 10px/1 Segoe UI,Arial,sans-serif;text-transform:uppercase;letter-spacing:.04em;padding:4px 9px;border-radius:99px;">${escapeHtml(entry.testType)}</span>
-                    </td>
-                </tr></table>
-                <p style="margin:6px 0 10px;font:400 12px/1.6 Segoe UI,Arial,sans-serif;color:#9aa2a0;">
-                    ${escapeHtml(entry.manufacturer || '—')} &middot; ${escapeHtml(entry.productName || '—')} &middot; ${escapeHtml(entry.date || '—')}
-                </p>
-                <p style="margin:0;font:400 13px/1.6 Segoe UI,Arial,sans-serif;color:#3f4650;">${escapeHtml(summary)}</p>
-            </td></tr>
-        </table>`;
-}
-
-function dashboardButtonHtml(label) {
-    return `<a href="${SITE_URL}" style="display:inline-block;background:#0d0d0d;color:#ffffff;text-decoration:none;font:600 13px/1 Segoe UI,Arial,sans-serif;padding:10px 18px;border-radius:6px;margin-top:2px;">${escapeHtml(label)}</a>`;
-}
-
-// Same button, arbitrary destination — used for the direct link to a report doc.
-function linkButtonHtml(href, label) {
-    return `<a href="${escapeHtml(href)}" style="display:inline-block;background:#6DC52D;color:#0d0d0d;text-decoration:none;font:600 13px/1 Segoe UI,Arial,sans-serif;padding:10px 18px;border-radius:6px;margin:0 8px 0 0;">${escapeHtml(label)}</a>`;
-}
-
-// Builds the branded HTML version of the approval email.
-function renderApprovalEmailHtml(r, typeName, dueDate) {
-    const name     = escapeHtml(r.submitterName || 'there');
-    const jobName  = escapeHtml(r.jobName   || '—');
-    const dateStart= escapeHtml(r.dateStart || '—');
-    const dateEnd  = escapeHtml(r.dateEnd   || '—');
-    const persons  = escapeHtml(r.persons   || '—');
-
-    const detailRow = (label, value) => `
-        <tr>
-            <td style="padding:7px 0;font:600 12px/1.4 Segoe UI,Arial,sans-serif;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;width:120px;vertical-align:top;">${label}</td>
-            <td style="padding:7px 0;font:400 14px/1.5 Segoe UI,Arial,sans-serif;color:#14171b;">${value}</td>
-        </tr>`;
-
-    const accessCodeBlock = r.accessCode ? `
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
-            <tr>
-                <td style="background:#eef7e6;border-left:4px solid #6DC52D;border-radius:6px;padding:18px 20px;">
-                    <p style="margin:0 0 6px;font:700 11px/1.4 Segoe UI,Arial,sans-serif;color:#2d6b0a;text-transform:uppercase;letter-spacing:.06em;">Your access code</p>
-                    <p style="margin:0 0 8px;font:700 26px/1.2 'Courier New',Consolas,monospace;color:#0d0d0d;letter-spacing:.06em;">${escapeHtml(r.accessCode)}</p>
-                    <p style="margin:0;font:400 13px/1.5 Segoe UI,Arial,sans-serif;color:#3f5c2a;">Please keep this safe — you'll need it to access the lab for your session.</p>
-                </td>
-            </tr>
-        </table>` : '';
-
-    const reportDueBlock = `
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
-            <tr>
-                <td style="background:#eaf3ff;border-left:4px solid #4d7fc4;border-radius:6px;padding:18px 20px;">
-                    <p style="margin:0 0 6px;font:700 11px/1.4 Segoe UI,Arial,sans-serif;color:#1d4ed8;text-transform:uppercase;letter-spacing:.06em;">Report due</p>
-                    <p style="margin:0 0 8px;font:400 14px/1.6 Segoe UI,Arial,sans-serif;color:#1e293b;">
-                        A short report covering the outcome of your session is due within
-                        <strong>5 working days</strong> of your session end date.
-                        ${dueDate ? `That means your report is due by <strong>${escapeHtml(dueDate)}</strong>.` : ''}
-                    </p>
-                    ${dashboardButtonHtml('Submit Report on the Dashboard')}
-                </td>
-            </tr>
-        </table>`;
-
-    const bodyHtml = `
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eceff0;border-bottom:1px solid #eceff0;margin-bottom:4px;">
-            ${detailRow('Job Name',   jobName)}
-            ${detailRow('Start Date', dateStart)}
-            ${detailRow('End Date',   dateEnd)}
-            ${detailRow('Persons',    persons)}
-        </table>
-        ${accessCodeBlock}
-        ${accessCodeBlock ? '' : '<div style="height:24px;"></div>'}
-        ${reportDueBlock}
-        <p style="margin:0 0 4px;font:400 13px/1.6 Segoe UI,Arial,sans-serif;color:#667085;">
-            Questions, or need to make changes? Get in touch with the lab team:
-            <a href="mailto:poc.lab@proav.com" style="color:#4c9a1a;">poc.lab@proav.com</a>
-        </p>`;
-
-    return emailShell({
-        heading:  'Request approved',
-        intro:    `Hi ${name}, your ${escapeHtml(typeName)} request has been reviewed and approved by the PoC Lab team.`,
-        bodyHtml,
-        footerHtml: emailFooterStandard,
-    });
-}
-
-// Branded HTML for the "new report published" instant notification.
-function renderInstantEmailHtml(entry, sub) {
-    const bodyHtml = `
-        ${renderReportCardHtml(entry, { truncate: false })}
-        ${dashboardButtonHtml('View on Dashboard')}`;
-
-    return emailShell({
-        heading: 'New report published',
-        intro:   `A new ${escapeHtml(entry.testType)} report has just been added to the PoC Lab Research Catalogue.`,
-        bodyHtml,
-        footerHtml: emailFooterWithUnsubscribe(
-            "You're receiving this because you subscribed to instant report notifications.",
-            sub.token
-        ),
-    });
-}
-
-// Branded HTML for the weekly/monthly digest.
-function renderDigestEmailHtml(entries, frequency, sub) {
-    const period = frequency === 'weekly' ? 'this week' : 'this month';
-    const bodyHtml = `
-        ${entries.map(e => renderReportCardHtml(e, { truncate: true })).join('')}
-        ${dashboardButtonHtml('View Full Catalogue')}`;
-
-    return emailShell({
-        heading: `${entries.length} new report${entries.length !== 1 ? 's' : ''} ${period}`,
-        intro:   `Here's what's been added to the PoC Lab Research Catalogue ${period}.`,
-        bodyHtml,
-        footerHtml: emailFooterWithUnsubscribe(
-            `You're receiving this ${frequency} digest because you subscribed to PoC Lab updates.`,
-            sub.token
-        ),
-    });
-}
-
 // ── Request approval confirmation to submitter ────────────────────────────
 async function notifyRequestApproved(r) {
     const to = emailListToHeader(r.submitterEmail);
@@ -749,30 +562,6 @@ async function notifyRequestApproved(r) {
 // so it goes out regardless of whether they ever subscribed, and carries no
 // unsubscribe link. Solving the "I can't make people subscribe" problem is the
 // whole point of it.
-function renderCompleteEmailHtml(r, entry, typeName) {
-    const reportBtn = entry.fullReport ? linkButtonHtml(entry.fullReport, 'Read the Full Report') : '';
-
-    const bodyHtml = `
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eceff0;border-bottom:1px solid #eceff0;margin-bottom:22px;">
-            <tr>
-                <td style="padding:7px 0;font:600 12px/1.4 Segoe UI,Arial,sans-serif;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;width:120px;vertical-align:top;">Your request</td>
-                <td style="padding:7px 0;font:400 14px/1.5 Segoe UI,Arial,sans-serif;color:#14171b;">${escapeHtml(r.jobName || '—')}</td>
-            </tr>
-        </table>
-        ${renderReportCardHtml(entry, { truncate: false })}
-        <div style="margin-top:6px;">
-            ${reportBtn}
-            ${dashboardButtonHtml('View on Dashboard')}
-        </div>`;
-
-    return emailShell({
-        heading: 'Your report is ready',
-        intro:   `Hi ${escapeHtml(r.submitterName || 'there')}, the report from your ${escapeHtml(typeName)} request has been published on the PoC Lab Research Catalogue.`,
-        bodyHtml,
-        footerHtml: emailFooterStandard,
-    });
-}
-
 async function notifyRequestComplete(r, entry) {
     const to = emailListToHeader(r.submitterEmail);
     if (!to) {
@@ -821,19 +610,6 @@ async function notifyRequestComplete(r, entry) {
 async function notifyGlassBroken(cabinet, who, reason, ip) {
     const when = new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
 
-    const bodyHtml = `
-        <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;font:400 14px/1.7 Segoe UI,Arial,sans-serif;color:#2b2f2b;margin-bottom:14px;">
-            <tr><td style="padding:3px 0;width:120px;color:#6b7280;">Opened by</td><td style="padding:3px 0;font-weight:600;">${escapeHtml(who)}</td></tr>
-            <tr><td style="padding:3px 0;color:#6b7280;">Reason</td><td style="padding:3px 0;">${escapeHtml(reason)}</td></tr>
-            <tr><td style="padding:3px 0;color:#6b7280;">Key</td><td style="padding:3px 0;">${escapeHtml(cabinet.label || 'Emergency licence key')}</td></tr>
-            <tr><td style="padding:3px 0;color:#6b7280;">Time</td><td style="padding:3px 0;">${escapeHtml(when)}</td></tr>
-            <tr><td style="padding:3px 0;color:#6b7280;">IP</td><td style="padding:3px 0;">${escapeHtml(ip)}</td></tr>
-        </table>
-        <p style="margin:0 0 14px;font:400 14px/1.7 Segoe UI,Arial,sans-serif;color:#2b2f2b;">
-            The cabinet is now <strong>locked</strong> — nobody else can retrieve this key. To make emergency access available again, load a replacement key in the admin panel and re-arm it.
-        </p>
-        <div style="margin-top:6px;">${dashboardButtonHtml('Open the Dashboard')}</div>`;
-
     await sendEmail({
         to:      'poc.lab@proav.com',
         subject: `BREAK GLASS USED: ${cabinet.label || 'emergency licence key'} released to ${who}`,
@@ -852,12 +628,7 @@ async function notifyGlassBroken(cabinet, who, reason, ip) {
             '',
             `${SITE_URL}/admin.html`,
         ].join('\n'),
-        html: emailShell({
-            heading: 'Break glass used',
-            intro:   `The emergency licence key was released to ${escapeHtml(who)}.`,
-            bodyHtml,
-            footerHtml: emailFooterStandard,
-        }),
+        html: renderGlassBrokenEmailHtml({ cabinet, who, reason, when, ip }),
     });
 }
 
