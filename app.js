@@ -86,6 +86,7 @@ function formatDate(dateStr) {
 // resolve to the same image.
 const MFR_SLUG_ALIASES = {
     qsys: 'qsc', // "Q-SYS" is QSC's product line — same company, same logo
+    logi: 'logitech', // Logitech's "Logi" brand name
 };
 
 function mfrSlug(name) {
