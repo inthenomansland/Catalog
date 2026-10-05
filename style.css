@@ -831,14 +831,15 @@ main {
     right: 1.5rem;
     bottom: 1.5rem;
     z-index: 900;
-    width: 340px;
+    width: 420px;
     max-width: calc(100vw - 2rem);
-    padding: 1.1rem 1.25rem 1.1rem;
+    padding: 1.5rem 1.6rem;
     background: var(--brand-black);
     color: #fff;
     border-top: 3px solid var(--brand-green);
-    border-radius: 10px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    outline: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.4);
     animation: modalSlideUp 0.25s ease-out;
 }
 
@@ -846,12 +847,12 @@ main {
 
 .notify-prompt-close {
     position: absolute;
-    top: 0.4rem;
-    right: 0.6rem;
+    top: 0.55rem;
+    right: 0.8rem;
     background: none;
     border: none;
     color: #9ca3af;
-    font-size: 1.3rem;
+    font-size: 1.5rem;
     line-height: 1;
     cursor: pointer;
 }
@@ -860,19 +861,21 @@ main {
 
 .notify-prompt-title {
     font-weight: 700;
-    font-size: 0.95rem;
-    margin-bottom: 0.35rem;
+    font-size: 1.15rem;
+    margin-bottom: 0.45rem;
     padding-right: 1.25rem;
 }
 
 .notify-prompt-text {
-    font-size: 0.84rem;
+    font-size: 0.95rem;
     color: #d1d5db;
     line-height: 1.5;
-    margin-bottom: 0.9rem;
+    margin-bottom: 1.2rem;
 }
 
-.notify-prompt-actions { display: flex; gap: 0.6rem; }
+.notify-prompt-actions { display: flex; gap: 0.75rem; }
+
+.notify-prompt-actions button { padding: 0.65rem 1.5rem; font-size: 0.92rem; }
 
 .notify-prompt .modal-btn-cancel {
     background: transparent;
