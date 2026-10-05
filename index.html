@@ -206,6 +206,11 @@
                         <input type="email" multiple id="bench-submitter-email" placeholder="your@email.com, colleague@email.com">
                     </div>
 
+                    <div class="notify-optin">
+                        <input type="checkbox" id="bench-subscribe" checked>
+                        <label for="bench-subscribe">Also send me the weekly digest of new PoC Lab reports <span>(uses the first email above — unsubscribe any time)</span></label>
+                    </div>
+
                     <div class="modal-field">
                         <label for="bench-job-name">Job Name <span style="color:#ef4444">*</span></label>
                         <input type="text" id="bench-job-name" placeholder="e.g. Boardroom Display Evaluation">
@@ -286,6 +291,11 @@
                     <div class="modal-field">
                         <label for="poc-submitter-email">Your Email <span style="color:#9ca3af;font-weight:400;">(optional — separate several with commas to copy colleagues in)</span></label>
                         <input type="email" multiple id="poc-submitter-email" placeholder="your@email.com, colleague@email.com">
+                    </div>
+
+                    <div class="notify-optin">
+                        <input type="checkbox" id="poc-subscribe" checked>
+                        <label for="poc-subscribe">Also send me the weekly digest of new PoC Lab reports <span>(uses the first email above — unsubscribe any time)</span></label>
                     </div>
 
                     <div class="modal-field">
@@ -577,6 +587,17 @@
                 <button type="button" class="modal-btn-cancel" onclick="closeUnsubscribeModal()">Keep me subscribed</button>
                 <button type="button" class="modal-btn-submit modal-btn-submit--danger" id="unsubscribe-confirm-btn" onclick="confirmUnsubscribe()">Unsubscribe me</button>
             </div>
+        </div>
+    </div>
+
+    <!-- First-visit "Get notified" prompt — shown once, see initNotifyPrompt() in app.js -->
+    <div id="notify-prompt" class="notify-prompt hidden" role="dialog" aria-labelledby="notify-prompt-title">
+        <button class="notify-prompt-close" onclick="dismissNotifyPrompt()" aria-label="Dismiss">&times;</button>
+        <p class="notify-prompt-title" id="notify-prompt-title">Stay up to date with the PoC Lab</p>
+        <p class="notify-prompt-text">Get an email when new test reports are published — instantly, weekly or monthly.</p>
+        <div class="notify-prompt-actions">
+            <button class="modal-btn-submit" onclick="acceptNotifyPrompt()">Get notified</button>
+            <button class="modal-btn-cancel" onclick="dismissNotifyPrompt()">No thanks</button>
         </div>
     </div>
 

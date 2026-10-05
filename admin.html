@@ -475,6 +475,42 @@
         .entry-row-delete:hover { background: #fee2e2; }
         .entry-row-delete:disabled { opacity: 0.4; cursor: not-allowed; }
 
+        .entry-row-complete {
+            flex-shrink: 0;
+            background: none;
+            border: 1px solid #86efac;
+            border-radius: 5px;
+            padding: 0.25rem 0.65rem;
+            font-size: 0.78rem;
+            color: #15803d;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .entry-row-complete:hover { background: #f0fdf4; }
+        .entry-row-complete:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ── Completed requests history (collapsible) ───── */
+        .requests-history {
+            margin-top: 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 0.75rem;
+        }
+
+        .requests-history > summary {
+            cursor: pointer;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            user-select: none;
+        }
+
+        .requests-history > summary:hover { color: #374151; }
+        .requests-history .entry-row { opacity: 0.85; }
+
         /* ── Edit form ───────────────────────────────────── */
         .entry-edit-form {
             background: #f8fafc;

@@ -511,6 +511,7 @@ async function submitBenchRequest(event) {
     const dateEnd        = document.getElementById('bench-date-end').value;
     const persons        = document.getElementById('bench-persons').value.trim();
     const termsAccepted  = document.getElementById('bench-terms').checked;
+    const subscribe      = document.getElementById('bench-subscribe').checked;
     const msg            = document.getElementById('bench-msg');
 
     if (!submitterName || !jobName) {
@@ -533,12 +534,13 @@ async function submitBenchRequest(event) {
         const res = await fetch('/api/requests', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ type: 'bench', submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons, termsAccepted, termsVersion: TERMS_VERSION, _hp: document.getElementById('hp-bench').value }),
+            body:    JSON.stringify({ type: 'bench', submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons, termsAccepted, termsVersion: TERMS_VERSION, subscribe, _hp: document.getElementById('hp-bench').value }),
         });
 
         if (res.ok) {
             msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;';
             msg.textContent   = 'Request submitted! The team will be in touch to confirm your dates.';
+            if (subscribe && submitterEmail) setNotifyPromptState('subscribed');
             setTimeout(() => {
                 document.getElementById('bench-modal-overlay').classList.add('hidden');
                 document.body.style.overflow = '';
@@ -585,6 +587,7 @@ async function submitPoCRequest(event) {
     const dateEnd        = document.getElementById('poc-date-end').value;
     const persons        = document.getElementById('poc-persons').value.trim();
     const termsAccepted  = document.getElementById('poc-terms').checked;
+    const subscribe      = document.getElementById('poc-subscribe').checked;
     const msg            = document.getElementById('poc-msg');
 
     if (!submitterName || !jobName) {
@@ -607,12 +610,13 @@ async function submitPoCRequest(event) {
         const res = await fetch('/api/requests', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ type: 'poc', submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons, termsAccepted, termsVersion: TERMS_VERSION, _hp: document.getElementById('hp-poc').value }),
+            body:    JSON.stringify({ type: 'poc', submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons, termsAccepted, termsVersion: TERMS_VERSION, subscribe, _hp: document.getElementById('hp-poc').value }),
         });
 
         if (res.ok) {
             msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;';
             msg.textContent   = 'Request submitted! The team will be in touch to confirm your dates.';
+            if (subscribe && submitterEmail) setNotifyPromptState('subscribed');
             setTimeout(() => {
                 document.getElementById('poc-modal-overlay').classList.add('hidden');
                 document.body.style.overflow = '';
@@ -756,6 +760,7 @@ async function submitSubscription(event) {
             const labels = { instant: 'every new report', weekly: 'weekly digest', monthly: 'monthly digest' };
             msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;';
             msg.textContent   = `Subscribed! You'll receive notifications for ${labels[frequency]}.`;
+            setNotifyPromptState('subscribed');
             setTimeout(() => {
                 document.getElementById('subscribe-modal-overlay').classList.add('hidden');
                 document.body.style.overflow = '';
@@ -771,6 +776,43 @@ async function submitSubscription(event) {
         msg.textContent   = 'Network error. Please try again.';
     }
 }
+
+// ── First-visit "Get notified" prompt ─────────────────────────────────────
+// Shown once per browser, a few seconds after the page loads. Never again once
+// they subscribe; after "No thanks" it stays away for NOTIFY_PROMPT_SNOOZE_DAYS.
+// localStorage can be blocked or cleared — at worst they see the prompt again.
+const NOTIFY_PROMPT_KEY          = 'notify-prompt';
+const NOTIFY_PROMPT_SNOOZE_DAYS  = 90;
+const NOTIFY_PROMPT_DELAY_MS     = 4000;
+
+function setNotifyPromptState(state) {
+    try { localStorage.setItem(NOTIFY_PROMPT_KEY, JSON.stringify({ state, at: Date.now() })); } catch {}
+    document.getElementById('notify-prompt').classList.add('hidden');
+}
+
+function dismissNotifyPrompt() { setNotifyPromptState('dismissed'); }
+
+function acceptNotifyPrompt() {
+    // Snoozed rather than marked subscribed — if they cancel the modal, they
+    // made a choice and shouldn't be asked again tomorrow.
+    setNotifyPromptState('dismissed');
+    openSubscribeModal();
+}
+
+(function initNotifyPrompt() {
+    // Someone arriving from an unsubscribe link is the last person to ask.
+    if (new URLSearchParams(window.location.search).has('unsubscribe')) return;
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(NOTIFY_PROMPT_KEY)); } catch {}
+    if (saved && saved.state === 'subscribed') return;
+    if (saved && Date.now() - saved.at < NOTIFY_PROMPT_SNOOZE_DAYS * 86400000) return;
+
+    setTimeout(() => {
+        // Don't pop up over a form they're already filling in.
+        if (document.querySelector('.modal-overlay:not(.hidden)')) return;
+        document.getElementById('notify-prompt').classList.remove('hidden');
+    }, NOTIFY_PROMPT_DELAY_MS);
+})();
 
 // ── Report a Gotcha Modal ─────────────────────────────────────────────────
 function openGotchaModal() {

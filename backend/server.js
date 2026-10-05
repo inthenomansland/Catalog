@@ -144,6 +144,70 @@ function writeSubscribers(data) { fs.writeFileSync(SUBSCRIBERS_FILE,  JSON.strin
 // unsubscribed:true so there is a record of who left and when. Everything that
 // actually sends mail must go through this, never readSubscribers() directly.
 function activeSubscribers()    { return readSubscribers().filter(s => !s.unsubscribed); }
+
+// Addresses are matched case-insensitively — "Jo.Smith@" and "jo.smith@" are
+// one person and must never become two records receiving every mail twice.
+function normaliseEmail(email)  { return String(email || '').trim().toLowerCase(); }
+
+// A merged duplicate's token is kept in oldTokens so the unsubscribe link in
+// mail already sent to that record still works.
+function findSubByToken(subs, token) {
+    return subs.find(s => s.token === token || (s.oldTokens || []).includes(token));
+}
+
+// Adds an address to the list. overwrite:false leaves any existing record alone,
+// including an unsubscribed one — a pre-ticked box on a request form must not
+// quietly re-add someone who chose to leave. Returns 'new', 'updated' or 'exists'.
+function addSubscriber(email, frequency, { overwrite = true } = {}) {
+    email = normaliseEmail(email);
+    const subs = readSubscribers();
+    const sub  = subs.find(s => normaliseEmail(s.email) === email);
+    if (sub) {
+        if (!overwrite) return 'exists';
+        sub.frequency = frequency;
+        // Someone who previously unsubscribed is signing up again — clear the
+        // flag and issue a fresh token so the old link can't remove them twice.
+        if (sub.unsubscribed) {
+            delete sub.unsubscribed;
+            delete sub.unsubscribedDate;
+            delete sub.oldTokens;
+            sub.token          = generateToken();
+            sub.subscribedDate = new Date().toISOString().split('T')[0];
+            console.log(`[subscribe] resubscribed: ${email} (${frequency})`);
+        }
+        writeSubscribers(subs);
+        return 'updated';
+    }
+    subs.push({ email, frequency, token: generateToken(), subscribedDate: new Date().toISOString().split('T')[0] });
+    writeSubscribers(subs);
+    console.log(`[subscribe] new: ${email} (${frequency})`);
+    return 'new';
+}
+
+// One-off tidy of records saved before matching was case-insensitive: collapse
+// each address to a single record, preferring an active one, then the oldest.
+(function mergeDuplicateSubscribers() {
+    const subs   = readSubscribers();
+    const byAddr = new Map();
+    for (const s of subs) {
+        const key = normaliseEmail(s.email);
+        if (!byAddr.has(key)) byAddr.set(key, []);
+        byAddr.get(key).push(s);
+    }
+    if (byAddr.size === subs.length && subs.every(s => s.email === normaliseEmail(s.email))) return;
+
+    const merged = [];
+    for (const [email, group] of byAddr) {
+        group.sort((a, b) => (!!a.unsubscribed - !!b.unsubscribed) || String(a.subscribedDate).localeCompare(String(b.subscribedDate)));
+        const [keep, ...rest] = group;
+        keep.email = email;
+        const old = [...(keep.oldTokens || []), ...rest.flatMap(r => [r.token, ...(r.oldTokens || [])])];
+        if (old.length) keep.oldTokens = old;
+        if (rest.length) console.log(`[subscribe] merged ${rest.length} duplicate record(s) for ${email}`);
+        merged.push(keep);
+    }
+    writeSubscribers(merged);
+})();
 function readDigestState()      { return JSON.parse(fs.readFileSync(DIGEST_STATE_FILE, 'utf8')); }
 function writeDigestState(data) { fs.writeFileSync(DIGEST_STATE_FILE, JSON.stringify(data, null, 2), 'utf8'); }
 function readRequests()         { return JSON.parse(fs.readFileSync(REQUESTS_FILE,     'utf8')); }
@@ -988,27 +1052,9 @@ app.post('/api/subscribe', submitLimiter, (req, res) => {
     if (!email || !frequency) return res.status(400).json({ error: 'email and frequency required' });
     if (!['instant', 'weekly', 'monthly'].includes(frequency)) return res.status(400).json({ error: 'invalid frequency' });
 
-    const subs     = readSubscribers();
-    const existing = subs.findIndex(s => s.email === email);
-    if (existing !== -1) {
-        const sub = subs[existing];
-        sub.frequency = frequency;
-        // Someone who previously unsubscribed is signing up again — clear the
-        // flag and issue a fresh token so the old link can't remove them twice.
-        if (sub.unsubscribed) {
-            delete sub.unsubscribed;
-            delete sub.unsubscribedDate;
-            sub.token          = generateToken();
-            sub.subscribedDate = new Date().toISOString().split('T')[0];
-            console.log(`[subscribe] resubscribed: ${email} (${frequency})`);
-        }
-        writeSubscribers(subs);
-        return res.json({ message: 'Subscription updated' });
-    }
+    if (!EMAIL_RE.test(String(email).trim())) return res.status(400).json({ error: 'invalid email' });
 
-    subs.push({ email, frequency, token: generateToken(), subscribedDate: new Date().toISOString().split('T')[0] });
-    writeSubscribers(subs);
-    console.log(`[subscribe] new: ${email} (${frequency})`);
+    if (addSubscriber(email, frequency) === 'updated') return res.json({ message: 'Subscription updated' });
     res.status(201).json({ message: 'Subscribed successfully' });
 });
 
@@ -1019,7 +1065,7 @@ app.get('/api/unsubscribe/check', (req, res) => {
     const { token } = req.query;
     if (!token) return res.status(400).json({ error: 'token required' });
 
-    const sub = readSubscribers().find(s => s.token === token);
+    const sub = findSubByToken(readSubscribers(), token);
     if (!sub) return res.status(404).json({ error: 'Token not found' });
 
     res.json({ email: sub.email, frequency: sub.frequency, unsubscribed: !!sub.unsubscribed });
@@ -1034,7 +1080,7 @@ app.post('/api/unsubscribe', (req, res) => {
     if (!token) return res.status(400).json({ error: 'token required' });
 
     const subs = readSubscribers();
-    const sub  = subs.find(s => s.token === token);
+    const sub  = findSubByToken(subs, token);
     if (!sub) return res.status(404).json({ error: 'Token not found' });
 
     if (!sub.unsubscribed) {
@@ -1066,7 +1112,7 @@ app.delete('/api/admin/subscribers/:token', requireAuth, (req, res) => {
 // ── Requests (public submit) ──────────────────────────────────────────────
 app.post('/api/requests', submitLimiter, async (req, res) => {
     if (req.body._hp) return res.status(200).json({ message: 'ok' });
-    const { type, submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons, termsAccepted, termsVersion } = req.body || {};
+    const { type, submitterName, submitterEmail, jobName, scope, outcomes, kit, dateStart, dateEnd, persons, termsAccepted, termsVersion, subscribe } = req.body || {};
     if (!type || !['bench', 'poc'].includes(type)) return res.status(400).json({ error: 'type must be bench or poc' });
     if (!submitterName) return res.status(400).json({ error: 'submitterName is required' });
     if (!jobName)       return res.status(400).json({ error: 'jobName is required' });
@@ -1099,6 +1145,13 @@ app.post('/api/requests', submitLimiter, async (req, res) => {
     };
     requests.push(entry);
     writeRequests(requests);
+
+    // "Also notify me" tick box. Only the first address is the requester — the
+    // rest are colleagues being copied in, who never ticked anything.
+    if (subscribe === true && emails.length) {
+        addSubscriber(emails[0], 'weekly', { overwrite: false });
+    }
+
     res.status(201).json(entry);
     notifyNewRequest(entry);
 });
@@ -1122,6 +1175,37 @@ app.put('/api/requests/:id/approve', requireAuth, async (req, res) => {
     console.log(`[admin] request approved: "${r.jobName}" (${r.submitterEmail || 'no email'})`);
     recordLabAccess(r);
     notifyRequestApproved(r).catch(() => {});
+    res.json(r);
+});
+
+// ── Requests (admin close-out) ────────────────────────────────────────────
+// Manual "this job is done" for requests that don't end in a published report.
+// Sends nothing — the requester is only emailed when a report goes live.
+app.put('/api/requests/:id/complete', requireAuth, (req, res) => {
+    const requests = readRequests();
+    const r = requests.find(x => x.id === req.params.id);
+    if (!r) return res.status(404).json({ error: 'Not found' });
+    if (r.status !== 'approved') return res.status(400).json({ error: 'Only approved requests can be completed' });
+    r.status            = 'completed';
+    r.completedDate     = new Date().toISOString().split('T')[0];
+    r.completedManually = true;
+    writeRequests(requests);
+    console.log(`[admin] request completed: "${r.jobName}"`);
+    res.json(r);
+});
+
+// Undo for a misclicked Completed. Only manual completions can be reopened —
+// one closed by publishing a report has already emailed the requester.
+app.put('/api/requests/:id/reopen', requireAuth, (req, res) => {
+    const requests = readRequests();
+    const r = requests.find(x => x.id === req.params.id);
+    if (!r) return res.status(404).json({ error: 'Not found' });
+    if (r.status !== 'completed' || !r.completedManually) return res.status(400).json({ error: 'Only manually completed requests can be reopened' });
+    r.status = 'approved';
+    delete r.completedDate;
+    delete r.completedManually;
+    writeRequests(requests);
+    console.log(`[admin] request reopened: "${r.jobName}"`);
     res.json(r);
 });
 

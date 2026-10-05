@@ -680,6 +680,11 @@ async function exportAccessLog(btn) {
 // ── Requests ──────────────────────────────────────────────────────────────
 async function loadRequests() {
     const list = document.getElementById('requests-list');
+    // Keep the history open across reloads — Reopen and Delete inside it
+    // refresh the list, and snapping it shut each time would be maddening.
+    // Read before the Loading message below replaces it.
+    const prevHistory = document.getElementById('requests-completed');
+    const historyOpen = prevHistory ? prevHistory.open : false;
     list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">Loading...</p>';
 
     try {
@@ -697,8 +702,11 @@ async function loadRequests() {
             return;
         }
 
-        const pending  = requests.filter(r => r.status === 'pending');
-        const reviewed = requests.filter(r => r.status !== 'pending');
+        const pending   = requests.filter(r => r.status === 'pending');
+        const active    = requests.filter(r => r.status !== 'pending' && r.status !== 'completed');
+        // Most recently finished first — the history is read backwards from today.
+        const completed = requests.filter(r => r.status === 'completed')
+            .sort((a, b) => String(b.completedDate || '').localeCompare(String(a.completedDate || '')));
 
         updateBadge('requests-pending-badge', pending.length, pending.length > 0);
         updateBadge('sb-requests-pending',   pending.length, pending.length > 0);
@@ -713,14 +721,26 @@ async function loadRequests() {
             pending.forEach(r => list.appendChild(buildRequestRow(r, true)));
         }
 
-        if (reviewed.length > 0) {
-            if (pending.length > 0) {
-                const d = document.createElement('p');
-                d.style.cssText = 'font-size:0.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;margin-top:1rem;';
-                d.textContent   = 'Reviewed';
-                list.appendChild(d);
-            }
-            reviewed.forEach(r => list.appendChild(buildRequestRow(r, false)));
+        if (active.length > 0) {
+            const d = document.createElement('p');
+            d.style.cssText = `font-size:0.78rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;margin-top:${pending.length ? '1rem' : '0.25rem'};`;
+            d.textContent   = `Approved (${active.length})`;
+            list.appendChild(d);
+            active.forEach(r => list.appendChild(buildRequestRow(r, false)));
+        }
+
+        if (pending.length === 0 && active.length === 0) {
+            list.insertAdjacentHTML('beforeend', '<p style="color:#6b7280;font-size:0.85rem;">No open requests.</p>');
+        }
+
+        if (completed.length > 0) {
+            const history = document.createElement('details');
+            history.id        = 'requests-completed';
+            history.className = 'requests-history';
+            history.open      = historyOpen;
+            history.innerHTML = `<summary>Completed (${completed.length})</summary>`;
+            completed.forEach(r => history.appendChild(buildRequestRow(r, false)));
+            list.appendChild(history);
         }
     } catch {
         list.innerHTML = '<p style="color:#991b1b;font-size:0.85rem;">Failed to load requests.</p>';
@@ -745,12 +765,19 @@ function buildRequestRow(r, isPending) {
         : '';
 
     const doneBadge = r.status === 'completed'
-        ? `<span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:0.72rem;font-weight:700;background:#d1fae5;color:#065f46;margin-right:0.4rem;">Report sent</span>`
+        ? `<span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:0.72rem;font-weight:700;background:#d1fae5;color:#065f46;margin-right:0.4rem;">${r.completedManually ? 'Completed' : 'Report sent'}</span>`
         : '';
 
-    const doneMeta = r.status === 'completed'
-        ? `<span class="entry-row-meta">Report "${escapeHtml(r.reportTitle || '—')}" published ${r.completedDate || '—'}${r.submitterEmail ? ' · emailed ' + escapeHtml(r.submitterEmail) : ''}</span>`
-        : '';
+    const doneMeta = r.status !== 'completed' ? ''
+        : r.completedManually
+            ? `<span class="entry-row-meta">Marked complete ${r.completedDate || '—'}</span>`
+            : `<span class="entry-row-meta">Report "${escapeHtml(r.reportTitle || '—')}" published ${r.completedDate || '—'}${r.submitterEmail ? ' · emailed ' + escapeHtml(r.submitterEmail) : ''}</span>`;
+
+    const statusActions = r.status === 'approved'
+        ? `<button class="entry-row-complete" onclick="completeRequest('${r.id}', this)">Completed</button>`
+        : r.status === 'completed' && r.completedManually
+            ? `<button class="entry-row-edit" onclick="reopenRequest('${r.id}', this)">Reopen</button>`
+            : '';
 
     wrap.innerHTML = `
         <div class="entry-row">
@@ -764,7 +791,8 @@ function buildRequestRow(r, isPending) {
                 <button class="entry-row-edit" onclick="toggleRequestDetail('${r.id}')">Details</button>
                 ${isPending ? `<input type="text" id="request-accesscode-${r.id}" placeholder="Access code (optional)" style="width:150px;padding:0.3rem 0.55rem;font-size:0.78rem;border:1px solid #d1d5db;border-radius:5px;">
                 <button class="entry-row-approve" onclick="approveRequest('${r.id}', this)">Approve</button>
-                <button class="entry-row-delete"  onclick="deleteRequest('${r.id}', this)">Decline</button>` : `<button class="entry-row-delete" onclick="deleteRequest('${r.id}', this)">Delete</button>`}
+                <button class="entry-row-delete"  onclick="deleteRequest('${r.id}', this)">Decline</button>` : `${statusActions}
+                <button class="entry-row-delete" onclick="deleteRequest('${r.id}', this)">Delete</button>`}
             </div>
         </div>
         <div id="request-detail-${r.id}" class="hidden" style="background:#f8fafc;border:1px solid #e1e4e8;border-left:3px solid #6DC52D;border-radius:8px;padding:1.1rem;margin:0.25rem 0 0.5rem;">
@@ -807,6 +835,26 @@ async function approveRequest(id, btn) {
         btn.disabled = false;
     }
 }
+
+// Shared by Completed and Reopen — both just flip the status and refresh.
+async function setRequestStatus(id, action, btn, failMsg) {
+    btn.disabled = true;
+    try {
+        const res = await fetch(`/api/requests/${encodeURIComponent(id)}/${action}`, {
+            method:  'PUT',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (res.status === 401) { logout(); return; }
+        if (res.ok) { loadRequests(); loadRequestOptions(); }
+        else { alert(failMsg); btn.disabled = false; }
+    } catch {
+        alert('Network error.');
+        btn.disabled = false;
+    }
+}
+
+function completeRequest(id, btn) { setRequestStatus(id, 'complete', btn, 'Failed to mark as completed.'); }
+function reopenRequest(id, btn)   { setRequestStatus(id, 'reopen',   btn, 'Failed to reopen.'); }
 
 async function deleteRequest(id, btn) {
     if (!confirm('Delete this request? This cannot be undone.')) return;
