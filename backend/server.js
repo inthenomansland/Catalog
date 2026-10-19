@@ -790,7 +790,10 @@ async function sendDigest(frequency) {
         });
     }
 
-    writeDigestState({ ...state, [sinceKey]: new Date().toISOString() });
+    // Re-read rather than reuse the state from the top: on a Monday that is also
+    // the 1st, the weekly and monthly digests run side by side, and writing back
+    // the stale copy would undo the other one's timestamp and resend its items.
+    writeDigestState({ ...readDigestState(), [sinceKey]: new Date().toISOString() });
     console.log(`${frequency} digest sent to ${subscribers.length} subscriber(s)`);
 }
 
