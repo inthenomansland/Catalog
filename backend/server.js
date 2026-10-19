@@ -763,7 +763,7 @@ async function notifyInstantSubscribers(entry, skipEmails) {
 }
 
 // Product updates go to the same subscribers on the same terms as reports —
-// "every new report" subscribers hear about each deck as it is added.
+// instant ("everything new") subscribers hear about each deck as it is added.
 async function notifyInstantSubscribersOfUpdate(update) {
     const subscribers = activeSubscribers().filter(s => s.frequency === 'instant');
     for (const sub of subscribers) {

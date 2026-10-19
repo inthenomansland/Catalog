@@ -1127,7 +1127,7 @@ async function loadSubscribers() {
             return;
         }
 
-        const labels = { instant: 'Every new report', weekly: 'Weekly digest', monthly: 'Monthly digest' };
+        const labels = { instant: 'Everything new', weekly: 'Weekly digest', monthly: 'Monthly digest' };
 
         // Unsubscribed people are kept on record but sorted below the active
         // list, so the badge counts reflect who is actually being emailed.

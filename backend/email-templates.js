@@ -208,7 +208,7 @@ function renderInstantEmailHtml(entry, sub) {
     return shell({
         preheader: `${entry.manufacturer || ''} ${entry.productName || ''} — now in the PoC Lab catalogue.`.trim(),
         bodyHtml,
-        footerHtml: footer("You're receiving this because you asked to hear about every new report.", sub.token),
+        footerHtml: footer("You're receiving this because you asked to hear about everything new from the PoC Lab as it's published.", sub.token),
     });
 }
 

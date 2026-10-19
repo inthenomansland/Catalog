@@ -237,7 +237,7 @@
 
                     <div class="notify-optin">
                         <input type="checkbox" id="bench-subscribe" checked>
-                        <label for="bench-subscribe">Also send me the weekly digest of new PoC Lab reports <span>(uses the first email above — unsubscribe any time)</span></label>
+                        <label for="bench-subscribe">Also send me the weekly PoC Lab digest of new reports and product updates <span>(uses the first email above — unsubscribe any time)</span></label>
                     </div>
 
                     <div class="modal-field">
@@ -324,7 +324,7 @@
 
                     <div class="notify-optin">
                         <input type="checkbox" id="poc-subscribe" checked>
-                        <label for="poc-subscribe">Also send me the weekly digest of new PoC Lab reports <span>(uses the first email above — unsubscribe any time)</span></label>
+                        <label for="poc-subscribe">Also send me the weekly PoC Lab digest of new reports and product updates <span>(uses the first email above — unsubscribe any time)</span></label>
                     </div>
 
                     <div class="modal-field">
@@ -528,7 +528,7 @@
             <div class="modal-header">
                 <div>
                     <h2>Get Notified</h2>
-                    <p>Choose how often you'd like to hear about new reports from the PoC Lab.</p>
+                    <p>Choose how often you'd like to hear about what's new from the PoC Lab — test reports and manufacturer product updates.</p>
                 </div>
                 <button class="modal-close" onclick="closeSubscribeModal()">&times;</button>
             </div>
@@ -543,7 +543,7 @@
                     <div class="modal-field">
                         <label for="subscribe-frequency">Notification Frequency</label>
                         <select id="subscribe-frequency">
-                            <option value="instant">Every new report — as soon as it's published</option>
+                            <option value="instant">Everything new — as soon as it's published</option>
                             <option value="weekly">Weekly digest — summary every Monday morning</option>
                             <option value="monthly">Monthly digest — summary on the 1st of each month</option>
                         </select>
@@ -623,7 +623,7 @@
     <div id="notify-prompt" class="notify-prompt hidden" role="dialog" aria-labelledby="notify-prompt-title">
         <button class="notify-prompt-close" onclick="dismissNotifyPrompt()" aria-label="Dismiss">&times;</button>
         <p class="notify-prompt-title" id="notify-prompt-title">Stay up to date with the PoC Lab</p>
-        <p class="notify-prompt-text">Get an email when new test reports are published — instantly, weekly or monthly.</p>
+        <p class="notify-prompt-text">Get an email when new test reports and product updates are published — instantly, weekly or monthly.</p>
         <div class="notify-prompt-actions">
             <button class="modal-btn-submit" onclick="acceptNotifyPrompt()">Get notified</button>
             <button class="modal-btn-cancel" onclick="dismissNotifyPrompt()">No thanks</button>

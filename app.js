@@ -652,7 +652,7 @@ async function submitSubscription(event) {
         });
 
         if (res.ok) {
-            const labels = { instant: 'every new report', weekly: 'weekly digest', monthly: 'monthly digest' };
+            const labels = { instant: "everything new as it's published", weekly: 'weekly digest', monthly: 'monthly digest' };
             msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;';
             msg.textContent   = `Subscribed! You'll receive notifications for ${labels[frequency]}.`;
             setNotifyPromptState('subscribed');
