@@ -92,7 +92,7 @@ function buildWhatsNewSection(updates) {
 
 // ── Grouped by manufacturer ───────────────────────────────────────────────
 // One group per manufacturer, A–Z, newest meeting first inside each.
-function buildGroupedSection(updates) {
+function buildGroupedSection(updates, filtersActive) {
     const wrapper = document.createElement('div');
     wrapper.className = 'catalog-grouped';
 
@@ -123,6 +123,7 @@ function buildGroupedSection(updates) {
         grid.className = 'catalog-grid';
         items.forEach(u => grid.appendChild(createUpdateCard(u)));
         group.appendChild(grid);
+        makeGroupCollapsible(group, 'updates', name, filtersActive);
         wrapper.appendChild(group);
     });
 
@@ -154,7 +155,7 @@ function render(updates, filtersActive) {
         if (recent.length > 0) root.appendChild(buildWhatsNewSection(recent));
     }
 
-    root.appendChild(buildGroupedSection(updates));
+    root.appendChild(buildGroupedSection(updates, filtersActive));
 }
 
 function applyFilters() {

@@ -147,7 +147,7 @@ function toggleGotchas() {
 }
 
 // ── Grouped catalog ───────────────────────────────────────────────────────
-function buildGroupedSection(entries) {
+function buildGroupedSection(entries, filtersActive) {
     const wrapper = document.createElement('div');
     wrapper.className = 'catalog-grouped';
 
@@ -187,6 +187,7 @@ function buildGroupedSection(entries) {
         grid.className = 'catalog-grid';
         typeEntries.forEach(e => grid.appendChild(createCard(e)));
         group.appendChild(grid);
+        makeGroupCollapsible(group, 'reports', type, filtersActive);
 
         wrapper.appendChild(group);
     });
@@ -217,7 +218,7 @@ function render(entries, filtersActive) {
         if (recent.length > 0) root.appendChild(buildWhatsNewSection(recent));
     }
 
-    root.appendChild(buildGroupedSection(entries));
+    root.appendChild(buildGroupedSection(entries, filtersActive));
 }
 
 function applyFilters() {

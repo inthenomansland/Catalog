@@ -80,3 +80,51 @@ function mfrLogo(rawName) {
 
     return `<div class="card-logo-group">${tiles}${more}</div>`;
 }
+
+// ── Collapsible groups ────────────────────────────────────────────────────
+// A group heading (Kit / Program / Concept on the dashboard, a manufacturer on
+// Product Updates) folds its cards away so the next group is one scroll off.
+// Groups start open; what a visitor folds is remembered in their browser only.
+// While a search or filter is active every group shows open, so a match is
+// never hidden inside a folded group.
+function collapsedGroups(page) {
+    try { return new Set(JSON.parse(localStorage.getItem(`collapsed-groups:${page}`)) || []); }
+    catch { return new Set(); }
+}
+
+function saveCollapsedGroups(page, names) {
+    try { localStorage.setItem(`collapsed-groups:${page}`, JSON.stringify([...names])); } catch {}
+}
+
+function makeGroupCollapsible(group, page, name, filtersActive) {
+    const header = group.querySelector('.group-header');
+    const count  = header.querySelector('.group-count');
+
+    const right = document.createElement('span');
+    right.className = 'group-header-right';
+    if (count) right.appendChild(count);
+    right.insertAdjacentHTML('beforeend', '<span class="group-chevron" aria-hidden="true">▼</span>');
+    header.appendChild(right);
+
+    header.classList.add('group-header--toggle');
+    header.setAttribute('role', 'button');
+    header.setAttribute('tabindex', '0');
+
+    const setCollapsed = collapsed => {
+        group.classList.toggle('collapsed', collapsed);
+        header.setAttribute('aria-expanded', String(!collapsed));
+    };
+    setCollapsed(!filtersActive && collapsedGroups(page).has(name));
+
+    const toggle = () => {
+        const collapsed = !group.classList.contains('collapsed');
+        setCollapsed(collapsed);
+        const names = collapsedGroups(page);
+        collapsed ? names.add(name) : names.delete(name);
+        saveCollapsedGroups(page, names);
+    };
+    header.addEventListener('click', toggle);
+    header.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+}
