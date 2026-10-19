@@ -32,8 +32,11 @@ const TYPE_COLORS = {
     Concept: { bg: '#ede9fe', fg: '#5b21b6' },
 };
 
+// Product updates get their own colour, matching their badge on the dashboard.
+const UPDATE_COLOR = { bg: '#ccfbf1', fg: '#0f766e' };
+
 function typePill(type) {
-    const c = TYPE_COLORS[type] || { bg: '#e5e7eb', fg: '#374151' };
+    const c = TYPE_COLORS[type] || (type === 'Product Update' ? UPDATE_COLOR : { bg: '#e5e7eb', fg: '#374151' });
     return `<span style="display:inline-block;background:${c.bg};color:${c.fg};font:700 10px/1 ${FONT};text-transform:uppercase;letter-spacing:.6px;padding:5px 10px;border-radius:99px;">${escapeHtml(type)}</span>`;
 }
 const GREEN_INK = '#3d7a14';
@@ -209,6 +212,30 @@ function renderInstantEmailHtml(entry, sub) {
     });
 }
 
+// ── New product update (instant subscribers) ─────────────────────────────
+// Same shape as the new-report email, with the deck in place of the report.
+function renderInstantUpdateEmailHtml(update, sub) {
+    const bodyHtml = `
+        <p style="margin:0 0 12px;">${typePill('Product Update')} &nbsp;<span style="font:600 11px/1 ${FONT};color:${GREEN_INK};text-transform:uppercase;letter-spacing:1.2px;">New product update</span></p>
+        ${heading(escapeHtml(update.title))}
+        ${factTable([
+            ['Manufacturer', escapeHtml(update.manufacturer)],
+            ['Products',     escapeHtml(update.products)],
+            ['Meeting',      escapeHtml(formatLongDate(update.meetingDate))],
+        ])}
+        ${paragraph(escapeHtml(update.summary))}
+        ${buttons(
+            update.deckLink ? button(update.deckLink, 'View the deck') : '',
+            button(`${SITE_URL}/product-updates`, 'Browse product updates', { primary: !update.deckLink }),
+        )}`;
+
+    return shell({
+        preheader: `${update.manufacturer || ''} product update — slides from their meeting with the PoC Lab.`.trim(),
+        bodyHtml,
+        footerHtml: footer("You're receiving this because you asked to hear about everything new from the PoC Lab as it's published.", sub.token),
+    });
+}
+
 // ── Weekly / monthly digest ──────────────────────────────────────────────
 function digestItem(entry, first) {
     const link  = entry.fullReport || SITE_URL;
@@ -221,20 +248,64 @@ function digestItem(entry, first) {
         </td></tr>`;
 }
 
-function renderDigestEmailHtml(entries, frequency, sub) {
+function digestUpdateItem(update, first) {
+    const link = update.deckLink || `${SITE_URL}/product-updates`;
+    const meta = [update.manufacturer, formatLongDate(update.meetingDate)].filter(Boolean).map(escapeHtml).join(' &nbsp;&middot;&nbsp; ');
+    return `
+        <tr><td style="padding:20px 0;${first ? '' : `border-top:1px solid ${RULE};`}">
+            <p style="margin:0 0 6px;font:400 12px/1.5 ${FONT};color:${INK_3};">${typePill('Product Update')} &nbsp;${meta}</p>
+            <p style="margin:0 0 8px;font:600 17px/1.4 ${FONT};"><a href="${escapeHtml(link)}" style="color:${INK};text-decoration:none;">${escapeHtml(update.title)}</a></p>
+            <p style="margin:0;font:400 14px/1.6 ${FONT};color:${INK_2};">${escapeHtml(truncate(update.summary, 220))}</p>
+        </td></tr>`;
+}
+
+function digestList(rowsHtml) {
+    return `
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:2px solid ${GREEN};border-bottom:1px solid ${RULE};margin:0 0 28px;">
+            ${rowsHtml}
+        </table>`;
+}
+
+// "2 new reports and 1 product update" — shared with the subject line in
+// server.js so the two always agree.
+function digestCountPhrase(reportCount, updateCount) {
+    const parts = [];
+    if (reportCount) parts.push(`${reportCount} new report${reportCount !== 1 ? 's' : ''}`);
+    if (updateCount) parts.push(`${updateCount} ${reportCount ? '' : 'new '}product update${updateCount !== 1 ? 's' : ''}`);
+    return parts.join(' and ');
+}
+
+// updates is optional: with none, the email is exactly the reports digest it
+// has always been. With some, they follow the reports as their own section,
+// laid out the same way.
+function renderDigestEmailHtml(entries, frequency, sub, updates = []) {
     const period = frequency === 'weekly' ? 'this week' : 'this month';
     const n      = entries.length;
+
+    const intro = updates.length === 0
+        ? `Here's what the lab has published ${period}. Each title links to the full report.`
+        : n === 0
+            ? `Here are the manufacturer decks added ${period}. Each title opens the deck on SharePoint.`
+            : `Here's what the lab has published ${period}. Each report title links to the full report, and each product update to its deck.`;
+
+    const updatesSection = updates.length === 0 ? '' : `
+        ${n ? eyebrow('Product updates') : ''}
+        ${n ? paragraph('Slide decks from manufacturers who have met with the lab, for anyone who couldn\'t be there.', { size: 14, margin: '0 0 8px' }) : ''}
+        ${digestList(updates.map((u, i) => digestUpdateItem(u, i === 0)).join(''))}`;
+
     const bodyHtml = `
         ${eyebrow(frequency === 'weekly' ? 'Weekly digest' : 'Monthly digest')}
-        ${heading(`${n} new report${n !== 1 ? 's' : ''} ${period}`)}
-        ${paragraph(`Here's what the lab has published ${period}. Each title links to the full report.`, { margin: '0 0 8px' })}
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:2px solid ${GREEN};border-bottom:1px solid ${RULE};margin:0 0 28px;">
-            ${entries.map((e, i) => digestItem(e, i === 0)).join('')}
-        </table>
-        ${buttons(button(SITE_URL, 'Browse the catalogue'))}`;
+        ${heading(`${escapeHtml(digestCountPhrase(n, updates.length))} ${period}`)}
+        ${paragraph(intro, { margin: '0 0 8px' })}
+        ${n ? digestList(entries.map((e, i) => digestItem(e, i === 0)).join('')) : ''}
+        ${updatesSection}
+        ${buttons(
+            n ? button(SITE_URL, 'Browse the catalogue') : '',
+            updates.length ? button(`${SITE_URL}/product-updates`, 'Browse product updates', { primary: !n }) : '',
+        )}`;
 
     return shell({
-        preheader: entries.slice(0, 3).map(e => e.title).join(' · '),
+        preheader: [...entries, ...updates].slice(0, 3).map(e => e.title).join(' · '),
         bodyHtml,
         footerHtml: footer(`You're receiving the ${frequency} digest because you subscribed to PoC Lab updates.`, sub.token),
     });
@@ -325,7 +396,9 @@ return {
     escapeHtml,
     formatLongDate,
     renderInstantEmailHtml,
+    renderInstantUpdateEmailHtml,
     renderDigestEmailHtml,
+    digestCountPhrase,
     renderApprovalEmailHtml,
     renderCompleteEmailHtml,
     renderGlassBrokenEmailHtml,

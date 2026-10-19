@@ -17,6 +17,7 @@ function showAdminForm() {
     const stored = localStorage.getItem('poc-admin-active-section');
     navigateTo(SECTIONS.includes(stored) ? stored : 'section-add');
     loadEntries();
+    loadUpdates();
     loadRequests();
     loadAccessLog();
     loadRequestOptions();
@@ -443,6 +444,240 @@ async function deleteEntry(idx, btn) {
             alert('Failed to delete. Please try again.');
             btn.disabled = false;
         }
+    } catch {
+        alert('Network error.');
+        btn.disabled = false;
+    }
+}
+
+// ── Product updates ───────────────────────────────────────────────────────
+// Same flow as catalogue entries — add form on top, list with inline Edit
+// below — but kept to their own store and addressed by id, not position.
+let currentUpdates = [];
+
+function readUpdateFields(prefix) {
+    const val     = name => document.getElementById(`${prefix}${name}`).value.trim();
+    const tagsRaw = val('tags');
+    return {
+        title:        val('title'),
+        manufacturer: val('manufacturer'),
+        products:     val('products') || null,
+        meetingDate:  val('meetingDate'),
+        summary:      val('summary'),
+        deckLink:     val('deckLink'),
+        tags:         tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : []
+    };
+}
+
+function missingUpdateFields(u) {
+    return !u.title || !u.manufacturer || !u.meetingDate || !u.summary || !u.deckLink;
+}
+
+async function submitUpdate(event) {
+    event.preventDefault();
+    const btn    = document.getElementById('update-submit-btn');
+    const status = document.getElementById('update-status');
+    const update = readUpdateFields('update-');
+
+    if (missingUpdateFields(update)) {
+        status.className   = 'status error';
+        status.textContent = 'Please fill in all required fields.';
+        return;
+    }
+
+    btn.disabled       = true;
+    status.className   = 'status loading';
+    status.textContent = 'Saving...';
+
+    try {
+        const res = await fetch('/api/product-updates', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+            body:    JSON.stringify(update)
+        });
+
+        if (res.status === 401) {
+            logout();
+            status.className   = 'status error';
+            status.textContent = 'Session expired — please log in again.';
+            return;
+        }
+
+        if (res.ok) {
+            status.className   = 'status success';
+            status.textContent = `"${update.title}" added to Product Updates.`;
+            document.getElementById('update-form').reset();
+            document.getElementById('update-meetingDate').value = new Date().toISOString().split('T')[0];
+            loadUpdates();
+        } else {
+            status.className   = 'status error';
+            status.textContent = 'Failed to save — please try again.';
+        }
+    } catch {
+        status.className   = 'status error';
+        status.textContent = 'Network error. Is the backend running?';
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function loadUpdates() {
+    const list = document.getElementById('updates-list');
+    list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">Loading...</p>';
+
+    try {
+        const res      = await fetch('/api/product-updates');
+        currentUpdates = await res.json();
+        currentUpdates.sort((a, b) => String(b.meetingDate).localeCompare(String(a.meetingDate)));
+
+        updateBadge('updates-count-badge', currentUpdates.length, true);
+        updateBadge('sb-updates',          currentUpdates.length, true);
+
+        if (currentUpdates.length === 0) {
+            list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">No product updates yet.</p>';
+            return;
+        }
+
+        list.innerHTML = '';
+        currentUpdates.forEach(u => {
+            const row = document.createElement('div');
+            row.className = 'entry-row';
+            row.id = `update-row-${u.id}`;
+            row.innerHTML = `
+                <div class="entry-row-info">
+                    <span class="entry-row-title">${escapeHtml(u.title)}</span>
+                    <span class="entry-row-meta">${escapeHtml(u.manufacturer)} &middot; Meeting ${escapeHtml(u.meetingDate)}</span>
+                </div>
+                <div class="entry-row-actions">
+                    <button class="entry-row-edit" onclick="openUpdateEditForm('${u.id}')">Edit</button>
+                    <button class="entry-row-delete" onclick="deleteUpdate('${u.id}', this)">Delete</button>
+                </div>
+            `;
+            list.appendChild(row);
+        });
+    } catch {
+        list.innerHTML = '<p style="color:#991b1b;font-size:0.85rem;">Failed to load product updates.</p>';
+    }
+}
+
+function openUpdateEditForm(id) {
+    document.querySelectorAll('.entry-edit-form').forEach(f => f.remove());
+    document.querySelectorAll('#updates-list .entry-row-edit').forEach(b => {
+        b.textContent = 'Edit';
+        b.onclick = () => openUpdateEditForm(b.closest('.entry-row').id.replace('update-row-', ''));
+    });
+
+    const u       = currentUpdates.find(x => x.id === id);
+    const row     = document.getElementById(`update-row-${id}`);
+    const editBtn = row.querySelector('.entry-row-edit');
+    editBtn.textContent = 'Close';
+    editBtn.onclick = () => closeUpdateEditForm(id);
+
+    const p    = `edit-update-${id}-`;
+    const form = document.createElement('div');
+    form.className = 'entry-edit-form';
+    form.id = `edit-update-form-${id}`;
+    form.innerHTML = `
+        <div class="entry-edit-grid">
+            <div class="form-group full">
+                <label>Title</label>
+                <input type="text" id="${p}title" value="${escapeHtml(u.title)}">
+            </div>
+            <div class="form-group">
+                <label>Manufacturer</label>
+                <input type="text" id="${p}manufacturer" value="${escapeHtml(u.manufacturer)}">
+            </div>
+            <div class="form-group">
+                <label>Products Covered</label>
+                <input type="text" id="${p}products" value="${escapeHtml(u.products)}">
+            </div>
+            <div class="form-group full">
+                <label>Meeting Date</label>
+                <input type="date" id="${p}meetingDate" value="${escapeHtml(u.meetingDate)}">
+            </div>
+            <div class="form-group full">
+                <label>Summary</label>
+                <textarea id="${p}summary">${escapeHtml(u.summary)}</textarea>
+            </div>
+            <div class="form-group full">
+                <label>Deck (SharePoint link)</label>
+                <input type="url" id="${p}deckLink" value="${escapeHtml(u.deckLink)}">
+            </div>
+            <div class="form-group full">
+                <label>Tags (comma-separated)</label>
+                <input type="text" id="${p}tags" value="${escapeHtml((u.tags || []).join(', '))}">
+            </div>
+        </div>
+        <div class="entry-edit-actions">
+            <button class="btn-submit" onclick="saveUpdate('${id}')" style="padding:0.5rem 1.25rem;font-size:0.85rem;">Save Changes</button>
+            <button class="btn-logout" onclick="closeUpdateEditForm('${id}')">Cancel</button>
+            <span class="entry-edit-status" id="edit-update-status-${id}"></span>
+        </div>
+    `;
+
+    row.after(form);
+}
+
+function closeUpdateEditForm(id) {
+    const form = document.getElementById(`edit-update-form-${id}`);
+    if (form) form.remove();
+    const row = document.getElementById(`update-row-${id}`);
+    if (row) {
+        const editBtn = row.querySelector('.entry-row-edit');
+        editBtn.textContent = 'Edit';
+        editBtn.onclick = () => openUpdateEditForm(id);
+    }
+}
+
+async function saveUpdate(id) {
+    const statusEl = document.getElementById(`edit-update-status-${id}`);
+    const updated  = readUpdateFields(`edit-update-${id}-`);
+
+    if (missingUpdateFields(updated)) {
+        statusEl.textContent = 'Please fill in all required fields.';
+        statusEl.style.color = '#991b1b';
+        return;
+    }
+
+    statusEl.textContent = 'Saving...';
+    statusEl.style.color = '#5b21b6';
+
+    try {
+        const res = await fetch(`/api/product-updates/${encodeURIComponent(id)}`, {
+            method:  'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+            body:    JSON.stringify(updated)
+        });
+
+        if (res.status === 401) { logout(); return; }
+
+        if (res.ok) {
+            statusEl.textContent = 'Saved!';
+            statusEl.style.color = '#065f46';
+            setTimeout(() => { closeUpdateEditForm(id); loadUpdates(); }, 600);
+        } else {
+            statusEl.textContent = 'Failed to save.';
+            statusEl.style.color = '#991b1b';
+        }
+    } catch {
+        statusEl.textContent = 'Network error.';
+        statusEl.style.color = '#991b1b';
+    }
+}
+
+async function deleteUpdate(id, btn) {
+    if (!confirm('Delete this product update? The deck on SharePoint is not affected.')) return;
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/product-updates/${encodeURIComponent(id)}`, {
+            method:  'DELETE',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+
+        if (res.status === 401) { logout(); return; }
+        if (res.ok) loadUpdates();
+        else { alert('Failed to delete. Please try again.'); btn.disabled = false; }
     } catch {
         alert('Network error.');
         btn.disabled = false;
@@ -1254,7 +1489,7 @@ async function saveBreakGlass(event) {
     }
 }
 
-const SECTIONS = ['section-add', 'section-entries', 'section-requests', 'section-accesslog', 'section-subscribers', 'section-issues', 'section-breakglass'];
+const SECTIONS = ['section-add', 'section-entries', 'section-updates', 'section-requests', 'section-accesslog', 'section-subscribers', 'section-issues', 'section-breakglass'];
 
 function navigateTo(id) {
     SECTIONS.forEach(sid => document.getElementById(sid).classList.add('hidden'));
@@ -1280,6 +1515,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('date').value = new Date().toISOString().split('T')[0];
     document.getElementById('login-form').addEventListener('submit', login);
     document.getElementById('entry-form').addEventListener('submit', submitEntry);
+    document.getElementById('update-form').addEventListener('submit', submitUpdate);
+    document.getElementById('update-meetingDate').value = new Date().toISOString().split('T')[0];
     document.getElementById('gotcha-form').addEventListener('submit', submitGotcha);
     document.getElementById('glass-form').addEventListener('submit', breakGlass);
     document.getElementById('breakglass-form').addEventListener('submit', saveBreakGlass);

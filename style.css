@@ -131,6 +131,95 @@ header {
     color: #fcd34d;
 }
 
+/* ── Site menu ── */
+/* #header-actions is the one list of everything on the dashboard. Mobile shows
+   it as the slide-in drawer (see the 640px rules); desktop as a dropdown from
+   the Menu button. The items themselves are the same .header-btn buttons in
+   both, so each keeps its colour and meaning wherever it appears. */
+.menu-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #6b7280;
+    padding: 0.35rem 0.25rem 0;
+}
+
+a.header-btn { text-decoration: none; }
+
+.header-btn--nav {
+    background: transparent;
+    color: #e2e8f0;
+    border-color: transparent;
+}
+
+.header-btn--nav:hover {
+    background: rgba(255,255,255,0.08);
+    color: white;
+}
+
+.header-btn--nav.is-current {
+    background: rgba(109,197,45,0.12);
+    color: var(--brand-green);
+}
+
+/* The header text links home on pages other than the dashboard itself. */
+.header-home {
+    color: inherit;
+    text-decoration: none;
+}
+
+@media (min-width: 641px) {
+    header { position: relative; }
+
+    .header-actions {
+        display: none;
+        position: absolute;
+        top: 100%;
+        right: 2.5rem;
+        z-index: 300;
+        width: 290px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.45rem;
+        padding: 0.9rem;
+        margin-top: 3px;   /* clear the green rule under the header */
+        background: var(--brand-black);
+        border: 1px solid #2a2d38;
+        border-top: 0;
+        border-radius: 0 0 12px 12px;
+        box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+    }
+    .header-actions.open { display: flex; }
+
+    .header-actions .header-btn {
+        width: 100%;
+        justify-content: flex-start;
+        padding: 0.7rem 0.9rem;
+        font-size: 0.86rem;
+    }
+
+    .header-actions .header-divider {
+        width: auto;
+        height: 1px;
+        align-self: stretch;
+        margin: 0.3rem 0;
+    }
+
+    .menu-btn {
+        padding: 0.6rem 1.15rem;
+        font-size: 0.88rem;
+    }
+    .menu-btn[aria-expanded="true"] {
+        background: rgba(255,255,255,0.1);
+        border-color: rgba(255,255,255,0.65);
+        color: white;
+    }
+}
+
+@media (max-width: 640px) {
+    .menu-btn { display: none; }}
+
 .header-logo {
     height: 2.2rem;
     width: auto;
@@ -200,6 +289,9 @@ header p {
 }
 
 #clear-filters:hover { background: #e5e7eb; }
+
+/* The Product Updates page filters by manufacturer only, so it has fewer columns. */
+.filters-inner--updates { grid-template-columns: 2fr 1fr auto; }
 
 /* ── Main ── */
 main {
@@ -432,6 +524,7 @@ main {
 .card--kit::before     { background: #2563eb; }
 .card--program::before { background: var(--brand-green); }
 .card--concept::before { background: #7c3aed; }
+.card--update::before  { background: #0d9488; }
 
 .card:hover {
     box-shadow: 0 14px 30px rgba(0,0,0,0.13);
@@ -530,6 +623,7 @@ main {
 .badge-kit     { background: #dbeafe; color: #1d4ed8; }
 .badge-program { background: #d1fae5; color: #065f46; }
 .badge-concept { background: #ede9fe; color: #5b21b6; }
+.badge-update  { background: #ccfbf1; color: #0f766e; }
 
 /* ── Meta ── */
 .card-meta {

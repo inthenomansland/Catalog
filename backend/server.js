@@ -7,7 +7,9 @@ const crypto     = require('crypto');
 const rateLimit  = require('express-rate-limit');
 const {
     renderInstantEmailHtml,
+    renderInstantUpdateEmailHtml,
     renderDigestEmailHtml,
+    digestCountPhrase,
     renderApprovalEmailHtml,
     renderCompleteEmailHtml,
     renderGlassBrokenEmailHtml,
@@ -74,6 +76,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Short URL for the QR code on the lab door.
 app.get('/visit', (req, res) => res.sendFile(path.join(__dirname, 'public', 'visit.html')));
+app.get('/product-updates', (req, res) => res.sendFile(path.join(__dirname, 'public', 'product-updates.html')));
 
 const DATA_DIR          = '/app/data';
 const DATA_FILE         = path.join(DATA_DIR, 'data.json');
@@ -84,6 +87,7 @@ const DIGEST_STATE_FILE = path.join(DATA_DIR, 'digest-state.json');
 const REQUESTS_FILE     = path.join(DATA_DIR, 'requests.json');
 const BREAKGLASS_FILE   = path.join(DATA_DIR, 'breakglass.json');
 const ACCESS_LOG_FILE   = path.join(DATA_DIR, 'access-log.json');
+const UPDATES_FILE      = path.join(DATA_DIR, 'product-updates.json');
 const SITE_URL          = 'https://poc-lab.av.proav.cloud';
 
 // Who the access log ignores. The log answers "which guests were in the lab,
@@ -132,6 +136,7 @@ if (!fs.existsSync(DIGEST_STATE_FILE)) fs.writeFileSync(DIGEST_STATE_FILE, JSON.
 if (!fs.existsSync(REQUESTS_FILE))     fs.writeFileSync(REQUESTS_FILE,     '[]', 'utf8');
 if (!fs.existsSync(BREAKGLASS_FILE))   fs.writeFileSync(BREAKGLASS_FILE,   JSON.stringify(EMPTY_CABINET, null, 2), 'utf8');
 if (!fs.existsSync(ACCESS_LOG_FILE))   fs.writeFileSync(ACCESS_LOG_FILE,   '[]', 'utf8');
+if (!fs.existsSync(UPDATES_FILE))      fs.writeFileSync(UPDATES_FILE,      '[]', 'utf8');
 
 function readData()             { return JSON.parse(fs.readFileSync(DATA_FILE,         'utf8')); }
 function writeData(data)        { fs.writeFileSync(DATA_FILE,         JSON.stringify(data, null, 2), 'utf8'); }
@@ -220,6 +225,13 @@ function writeCabinet(data)     { fs.writeFileSync(BREAKGLASS_FILE,   JSON.strin
 // who was in the lab has to outlive the paperwork that produced it.
 function readAccessLog()        { return JSON.parse(fs.readFileSync(ACCESS_LOG_FILE,  'utf8')); }
 function writeAccessLog(data)   { fs.writeFileSync(ACCESS_LOG_FILE,   JSON.stringify(data, null, 2), 'utf8'); }
+
+// Product updates are manufacturer slide decks, kept apart from data.json so
+// nothing that treats every entry as a test report (the Kit/Program/Concept
+// groups, request close-out, report emails) ever picks one up. The deck itself
+// stays on SharePoint — only the link is stored here.
+function readUpdates()          { return JSON.parse(fs.readFileSync(UPDATES_FILE,     'utf8')); }
+function writeUpdates(data)     { fs.writeFileSync(UPDATES_FILE,      JSON.stringify(data, null, 2), 'utf8'); }
 
 function generateToken() { return crypto.randomBytes(32).toString('hex'); }
 function generateId()    { return crypto.randomBytes(8).toString('hex'); }
@@ -750,6 +762,35 @@ async function notifyInstantSubscribers(entry, skipEmails) {
     }
 }
 
+// Product updates go to the same subscribers on the same terms as reports —
+// "every new report" subscribers hear about each deck as it is added.
+async function notifyInstantSubscribersOfUpdate(update) {
+    const subscribers = activeSubscribers().filter(s => s.frequency === 'instant');
+    for (const sub of subscribers) {
+        await sendEmail({
+            to:      sub.email,
+            subject: `New Product Update: ${update.title} — PoC Lab`,
+            text: [
+                `A new product update has been added to the PoC Lab dashboard.`,
+                '',
+                `Title:        ${update.title}`,
+                `Manufacturer: ${update.manufacturer}`,
+                `Products:     ${update.products || '—'}`,
+                `Meeting:      ${update.meetingDate}`,
+                '',
+                'Summary:',
+                update.summary,
+                '',
+                `View the deck: ${update.deckLink}`,
+                `All product updates: ${SITE_URL}/product-updates`,
+                '',
+                `To unsubscribe: ${SITE_URL}/?unsubscribe=${sub.token}`,
+            ].join('\n'),
+            html: renderInstantUpdateEmailHtml(update, sub),
+        });
+    }
+}
+
 async function sendDigest(frequency) {
     const subscribers = activeSubscribers().filter(s => s.frequency === frequency);
     if (subscribers.length === 0) return;
@@ -760,8 +801,12 @@ async function sendDigest(frequency) {
     const period   = frequency === 'weekly' ? 'this week' : 'this month';
 
     const entries = readData().filter(e => !since || new Date(e.date) > new Date(since));
-    if (entries.length === 0) {
-        console.log(`No new entries for ${frequency} digest — skipping`);
+    // Decks are picked up by when they were added, not the meeting date: a
+    // deck usually arrives days after the meeting, and going by the meeting
+    // would drop any that land after the digest for that week has gone out.
+    const updates = readUpdates().filter(u => !since || new Date(u.addedAt || u.meetingDate) > new Date(since));
+    if (entries.length === 0 && updates.length === 0) {
+        console.log(`No new entries or product updates for ${frequency} digest — skipping`);
         return;
     }
 
@@ -771,7 +816,14 @@ async function sendDigest(frequency) {
         `  ${e.summary.substring(0, 150)}${e.summary.length > 150 ? '...' : ''}`,
     ].join('\n')).join('\n\n');
 
-    const subject = `PoC Lab Digest — ${entries.length} new report${entries.length !== 1 ? 's' : ''} ${period}`;
+    const updateLines = updates.map(u => [
+        `• ${u.title}`,
+        `  ${u.manufacturer} | Product Update | ${u.meetingDate}`,
+        `  ${u.summary.substring(0, 150)}${u.summary.length > 150 ? '...' : ''}`,
+        `  ${u.deckLink}`,
+    ].join('\n')).join('\n\n');
+
+    const subject = `PoC Lab Digest — ${digestCountPhrase(entries.length, updates.length)} ${period}`;
 
     for (const sub of subscribers) {
         await sendEmail({
@@ -780,13 +832,14 @@ async function sendDigest(frequency) {
             text: [
                 `Here's what's been added to the PoC Lab Research Catalogue ${period}:`,
                 '',
-                entryLines,
-                '',
+                ...(entries.length ? [entryLines, ''] : []),
+                ...(updates.length ? ['PRODUCT UPDATES', '', updateLines, ''] : []),
                 `View the full catalogue: ${SITE_URL}`,
+                ...(updates.length ? [`All product updates: ${SITE_URL}/product-updates`] : []),
                 '',
                 `To unsubscribe: ${SITE_URL}/?unsubscribe=${sub.token}`,
             ].join('\n'),
-            html: renderDigestEmailHtml(entries, frequency, sub),
+            html: renderDigestEmailHtml(entries, frequency, sub, updates),
         });
     }
 
@@ -988,6 +1041,73 @@ app.delete('/api/entries/:index', requireAuth, (req, res) => {
     if (isNaN(idx) || idx < 0 || idx >= data.length) return res.status(404).json({ error: 'Not found' });
     data.splice(idx, 1);
     writeData(data);
+    res.status(204).send();
+});
+
+// ── Product updates ───────────────────────────────────────────────────────
+// Keyed on id rather than array position, so a stale admin tab can never edit
+// or delete a different deck from the one it was showing.
+function cleanUpdate(body) {
+    const text = v => String(v || '').trim();
+    const tags = Array.isArray(body.tags) ? body.tags : String(body.tags || '').split(',');
+    return {
+        manufacturer: text(body.manufacturer),
+        title:        text(body.title),
+        products:     text(body.products) || null,
+        meetingDate:  text(body.meetingDate),
+        summary:      text(body.summary),
+        tags:         tags.map(t => String(t).trim()).filter(Boolean),
+        deckLink:     text(body.deckLink),
+    };
+}
+
+function updateError(u) {
+    if (!u.manufacturer || !u.title || !u.meetingDate || !u.summary || !u.deckLink) {
+        return 'manufacturer, title, meetingDate, summary and deckLink are required';
+    }
+    return null;
+}
+
+app.get('/api/product-updates', (req, res) => {
+    res.json(readUpdates());
+});
+
+app.post('/api/product-updates', requireAuth, (req, res) => {
+    const update = cleanUpdate(req.body || {});
+    const error  = updateError(update);
+    if (error) return res.status(400).json({ error });
+
+    const record = { id: generateId(), ...update, addedAt: new Date().toISOString() };
+    const data   = readUpdates();
+    data.unshift(record);
+    writeUpdates(data);
+    console.log(`[updates] added: "${record.title}" (${record.manufacturer})`);
+    res.status(201).json(record);
+
+    notifyInstantSubscribersOfUpdate(record).catch(err => console.error('[updates] notify failed:', err.message));
+});
+
+app.put('/api/product-updates/:id', requireAuth, (req, res) => {
+    const data = readUpdates();
+    const idx  = data.findIndex(u => u.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Not found' });
+
+    const update = cleanUpdate(req.body || {});
+    const error  = updateError(update);
+    if (error) return res.status(400).json({ error });
+
+    data[idx] = { ...data[idx], ...update };
+    writeUpdates(data);
+    res.json(data[idx]);
+});
+
+app.delete('/api/product-updates/:id', requireAuth, (req, res) => {
+    const data = readUpdates();
+    const idx  = data.findIndex(u => u.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Not found' });
+    const [removed] = data.splice(idx, 1);
+    writeUpdates(data);
+    console.log(`[updates] deleted: "${removed.title}"`);
     res.status(204).send();
 });
 

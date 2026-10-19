@@ -586,6 +586,10 @@
                     <span>Entries</span>
                     <span class="sb-badge sb-badge--gray" id="sb-entries" style="display:none"></span>
                 </a>
+                <a class="sidebar-item" id="nav-updates" onclick="navigateTo('section-updates')">
+                    <span>Product Updates</span>
+                    <span class="sb-badge sb-badge--gray" id="sb-updates" style="display:none"></span>
+                </a>
                 <a class="sidebar-item" id="nav-requests" onclick="navigateTo('section-requests')">
                     <span>Requests</span>
                     <span class="sb-badge sb-badge--orange" id="sb-requests-pending" style="display:none"></span>
@@ -755,6 +759,55 @@
                         <p class="page-subtitle">All catalogue entries. Click Edit to modify or remove an entry.</p>
                     </div>
                     <div id="entries-list"></div>
+                </div>
+
+                <!-- Product Updates -->
+                <div class="section-panel hidden" id="section-updates">
+                    <div class="page-header">
+                        <h2>
+                            Product Updates
+                            <span class="section-header-badge badge--gray" id="updates-count-badge" style="display:none"></span>
+                        </h2>
+                        <p class="page-subtitle">Manufacturer slide decks shown on the Product Updates page. The deck stays on SharePoint &mdash; paste its link below.</p>
+                    </div>
+                    <form id="update-form" novalidate>
+                        <div class="form-grid">
+                            <div class="form-group full">
+                                <label for="update-title">Title <span class="required">*</span></label>
+                                <input type="text" id="update-title" placeholder="e.g. Q4 2026 roadmap briefing">
+                            </div>
+                            <div class="form-group">
+                                <label for="update-manufacturer">Manufacturer <span class="required">*</span></label>
+                                <input type="text" id="update-manufacturer" placeholder="e.g. Crestron">
+                            </div>
+                            <div class="form-group">
+                                <label for="update-products">Products Covered</label>
+                                <input type="text" id="update-products" placeholder="e.g. 1 Beyond, DM NVX">
+                            </div>
+                            <div class="form-group full">
+                                <label for="update-meetingDate">Meeting Date <span class="required">*</span></label>
+                                <input type="date" id="update-meetingDate">
+                            </div>
+                            <div class="form-group full">
+                                <label for="update-summary">Summary <span class="required">*</span></label>
+                                <textarea id="update-summary" placeholder="Two or three sentences on what the deck covers..."></textarea>
+                            </div>
+                            <div class="form-group full">
+                                <label for="update-deckLink">Deck (SharePoint link) <span class="required">*</span></label>
+                                <input type="url" id="update-deckLink" placeholder="https://yourcompany.sharepoint.com/...">
+                            </div>
+                            <div class="form-group full">
+                                <label for="update-tags">Tags</label>
+                                <input type="text" id="update-tags" placeholder="roadmap, control, AV over IP">
+                                <span class="hint">Comma-separated keywords</span>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-submit" id="update-submit-btn">Add Product Update</button>
+                        </div>
+                        <div class="status" id="update-status"></div>
+                    </form>
+                    <div id="updates-list" style="margin-top:1.5rem;border-top:1px solid #f0f2f5;padding-top:1.25rem;"></div>
                 </div>
 
                 <!-- Requests -->
