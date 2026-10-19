@@ -369,29 +369,6 @@ function renderCompleteEmailHtml(r, entry, typeName) {
     });
 }
 
-// ── Break glass used (to the lab team) ───────────────────────────────────
-function renderGlassBrokenEmailHtml({ cabinet, who, reason, when, ip }) {
-    const bodyHtml = `
-        ${eyebrow('Security alert', '#b42318')}
-        ${heading('Emergency licence key released')}
-        ${paragraph(`The break-glass cabinet was opened and the key was released to <strong style="color:${INK};">${escapeHtml(who)}</strong>.`)}
-        ${factTable([
-            ['Opened by', escapeHtml(who)],
-            ['Reason',    escapeHtml(reason)],
-            ['Key',       escapeHtml((cabinet && cabinet.label) || 'Emergency licence key')],
-            ['Time',      escapeHtml(when)],
-            ['IP address', escapeHtml(ip)],
-        ])}
-        ${paragraph(`The cabinet is now <strong style="color:${INK};">locked</strong> and nobody else can retrieve this key. To make emergency access available again, load a replacement key in the admin panel and re-arm it.`)}
-        ${buttons(button(`${SITE_URL}/admin.html`, 'Open the admin panel'))}`;
-
-    return shell({
-        preheader: `Released to ${who}: ${reason}`,
-        bodyHtml,
-        footerHtml: footer(),
-    });
-}
-
 return {
     escapeHtml,
     formatLongDate,
@@ -401,6 +378,5 @@ return {
     digestCountPhrase,
     renderApprovalEmailHtml,
     renderCompleteEmailHtml,
-    renderGlassBrokenEmailHtml,
 };
 });
