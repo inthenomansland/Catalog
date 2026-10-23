@@ -702,21 +702,26 @@ async function notifyInstantSubscribersOfUpdate(update) {
 }
 
 async function sendDigest(frequency) {
+    const sinceKey    = frequency === 'weekly' ? 'lastWeekly' : 'lastMonthly';
+    // A skipped digest still counts as done for this slot, so the catch-up
+    // check doesn't retry it every hour until the next one is due.
+    const markDone    = () => writeDigestState({ ...readDigestState(), [sinceKey]: new Date().toISOString() });
     const subscribers = activeSubscribers().filter(s => s.frequency === frequency);
-    if (subscribers.length === 0) return;
+    if (subscribers.length === 0) { markDone(); return; }
 
     const state    = readDigestState();
-    const sinceKey = frequency === 'weekly' ? 'lastWeekly' : 'lastMonthly';
     const since    = state[sinceKey];
     const period   = frequency === 'weekly' ? 'this week' : 'this month';
 
-    const entries = readData().filter(e => !since || new Date(e.date) > new Date(since));
+    // Entries added before addedAt existed fall back to their report date.
+    const entries = readData().filter(e => !since || new Date(e.addedAt || e.date) > new Date(since));
     // Decks are picked up by when they were added, not the meeting date: a
     // deck usually arrives days after the meeting, and going by the meeting
     // would drop any that land after the digest for that week has gone out.
     const updates = readUpdates().filter(u => !since || new Date(u.addedAt || u.meetingDate) > new Date(since));
     if (entries.length === 0 && updates.length === 0) {
         console.log(`No new entries or product updates for ${frequency} digest — skipping`);
+        markDone();
         return;
     }
 
@@ -760,29 +765,55 @@ async function sendDigest(frequency) {
     console.log(`${frequency} digest sent to ${subscribers.length} subscriber(s)`);
 }
 
-// ── Digest scheduler — checks every hour ──────────────────────────────────
+// ── Digest scheduler — checks on start, then every hour ───────────────────
+// Each digest has a slot (weekly: Monday 9am UTC, monthly: the 1st at 9am UTC)
+// and goes out on the first check after its slot that finds it not yet sent.
+// Checking for a missed slot, rather than for "is it 9am now", is what lets a
+// container restarted during the 9 o'clock hour still send — the hourly timer
+// restarts with it, so its next tick can land after 10.
+function lastWeeklySlot(now) {
+    const daysSinceMonday = (now.getUTCDay() + 6) % 7;
+    let slot = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysSinceMonday, 9);
+    if (slot > now.getTime()) slot -= 7 * 86400000;
+    return slot;
+}
+
+function lastMonthlySlot(now) {
+    let slot = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 9);
+    if (slot > now.getTime()) slot = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 9);
+    return slot;
+}
+
+const digestsRunning = new Set();
+
+function checkDigests() {
+    const now   = new Date();
+    const state = readDigestState();
+
+    for (const [frequency, key, slot] of [
+        ['weekly',  'lastWeekly',  lastWeeklySlot(now)],
+        ['monthly', 'lastMonthly', lastMonthlySlot(now)],
+    ]) {
+        if (digestsRunning.has(frequency)) continue;
+        // No record at all means a fresh install: start counting from now
+        // rather than mailing every entry in the catalogue as "new".
+        if (!state[key]) {
+            writeDigestState({ ...readDigestState(), [key]: now.toISOString() });
+            continue;
+        }
+        if (new Date(state[key]).getTime() >= slot) continue;
+
+        console.log(`${frequency} digest due (slot ${new Date(slot).toISOString()}) — sending`);
+        digestsRunning.add(frequency);
+        sendDigest(frequency)
+            .catch(err => console.error(`${frequency} digest failed:`, err.message))
+            .finally(() => digestsRunning.delete(frequency));
+    }
+}
+
 function startDigestScheduler() {
-    setInterval(() => {
-        const now   = new Date();
-        const day   = now.getDay();   // 0=Sun 1=Mon
-        const date  = now.getDate();  // 1-31
-        const hour  = now.getHours(); // 0-23 (UTC inside Docker)
-        const state = readDigestState();
-
-        // Weekly: Monday at 9am UTC
-        if (day === 1 && hour === 9) {
-            const last      = state.lastWeekly ? new Date(state.lastWeekly) : null;
-            const daysSince = last ? (now - last) / 86400000 : 999;
-            if (daysSince >= 6) sendDigest('weekly');
-        }
-
-        // Monthly: 1st of month at 9am UTC
-        if (date === 1 && hour === 9) {
-            const last      = state.lastMonthly ? new Date(state.lastMonthly) : null;
-            const daysSince = last ? (now - last) / 86400000 : 999;
-            if (daysSince >= 28) sendDigest('monthly');
-        }
-    }, 60 * 60 * 1000);
+    setTimeout(checkDigests, 10 * 1000);
+    setInterval(checkDigests, 60 * 60 * 1000);
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────
@@ -804,7 +835,10 @@ app.get('/api/entries', (req, res) => {
 // requestId is optional and is NOT part of the entry — it names the request this
 // report answers, so the person who raised it gets told the moment it's live.
 app.post('/api/entries', requireAuth, (req, res) => {
-    const { requestId, ...entry } = req.body || {};
+    const { requestId, ...fields } = req.body || {};
+    // addedAt is what the digests go by: the report date is when the test ran,
+    // which can be days before it is published here.
+    const entry = { ...fields, addedAt: new Date().toISOString() };
 
     const data = readData();
     data.unshift(entry);
@@ -834,9 +868,11 @@ app.put('/api/entries/:index', requireAuth, (req, res) => {
     const idx  = parseInt(req.params.index, 10);
     const data = readData();
     if (isNaN(idx) || idx < 0 || idx >= data.length) return res.status(404).json({ error: 'Not found' });
-    data[idx] = req.body;
+    // The admin form sends only the fields it edits, so carry addedAt over.
+    const { addedAt } = data[idx];
+    data[idx] = addedAt ? { ...req.body, addedAt } : req.body;
     writeData(data);
-    res.json(req.body);
+    res.json(data[idx]);
 });
 
 app.delete('/api/entries/:index', requireAuth, (req, res) => {
@@ -1247,5 +1283,5 @@ app.listen(3000, () => {
         console.log('Email notifications disabled — SMTP_USER or SMTP_PASS not set');
     }
     startDigestScheduler();
-    console.log('Digest scheduler started — weekly: Monday 9am UTC, monthly: 1st of month 9am UTC');
+    console.log('Digest scheduler started — weekly: Monday 9am UTC, monthly: 1st of month 9am UTC, missed slots sent on start');
 });
