@@ -1275,6 +1275,14 @@ app.delete('/api/requests/:id', requireAuth, (req, res) => {
     res.status(204).send();
 });
 
+// ── Not found ─────────────────────────────────────────────────────────────
+// Last in line, so only runs when nothing above matched. API callers still get
+// JSON; anyone following a dead link in a browser gets the branded page.
+app.use((req, res) => {
+    if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
+    res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+});
+
 app.listen(3000, () => {
     console.log('PoC Lab backend running on port 3000');
     if (process.env.SMTP_USER && process.env.SMTP_PASS) {

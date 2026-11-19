@@ -2,8 +2,17 @@ let allUpdates = [];
 
 // ── Data loading ──────────────────────────────────────────────────────────
 async function loadUpdates() {
-    const res  = await fetch('/api/product-updates');
-    allUpdates = await res.json();
+    // "Loading product updates…" shows (in product-updates.html) until this
+    // finishes; if the server can't be reached, say so instead of sitting blank.
+    try {
+        const res  = await fetch('/api/product-updates');
+        if (!res.ok) throw new Error(`product-updates ${res.status}`);
+        allUpdates = await res.json();
+    } catch (err) {
+        console.error('Product updates failed to load:', err);
+        showLoadError('updates-root', 'product updates', loadUpdates);
+        return;
+    }
     allUpdates.sort((a, b) => new Date(b.meetingDate) - new Date(a.meetingDate));
     populateFilters();
     render(allUpdates, false);

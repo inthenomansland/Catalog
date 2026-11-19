@@ -6,6 +6,19 @@
     <title>PoC Lab — Product Updates</title>
     <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <!-- Internal tool: keep it out of search engines -->
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="description" content="Notes from manufacturer product update meetings with the proAV PoC Lab.">
+    <!-- Link preview card for Teams, Outlook and Slack -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="proAV PoC Lab">
+    <meta property="og:title" content="PoC Lab Product Updates">
+    <meta property="og:description" content="Notes from manufacturer product update meetings.">
+    <meta property="og:url" content="https://poc-lab.av.proav.cloud/product-updates">
+    <meta property="og:image" content="https://poc-lab.av.proav.cloud/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -129,7 +142,7 @@
         <div class="results-bar">
             <span id="results-count"></span>
         </div>
-        <div id="updates-root"></div>
+        <div id="updates-root"><div class="load-state" role="status"><span class="load-spinner" aria-hidden="true"></span>Loading product updates…</div></div>
         <div id="no-results" class="no-results hidden">
             No product updates match your current filters.
         </div>

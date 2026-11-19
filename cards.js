@@ -128,3 +128,23 @@ function makeGroupCollapsible(group, page, name, filtersActive) {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
     });
 }
+
+// ── Loading / load failure ────────────────────────────────────────────────
+// Each list page starts with a .load-state placeholder in its root ("Loading
+// …") that render() clears. If the data can't be fetched, swap it for a plain
+// explanation and a Try again button rather than leaving an empty page.
+function showLoadError(rootId, what, retry) {
+    const root = document.getElementById(rootId);
+    if (!root) return;
+    root.innerHTML = `
+        <div class="load-state load-state--error" role="alert">
+            <p><strong>Couldn't load ${what}.</strong></p>
+            <p>The lab server may be restarting — give it a moment and try again.
+               If it keeps happening, email <a href="mailto:poc.lab@proav.com">poc.lab@proav.com</a>.</p>
+            <button type="button" class="load-retry">Try again</button>
+        </div>`;
+    root.querySelector('.load-retry').addEventListener('click', () => {
+        root.innerHTML = '<div class="load-state" role="status"><span class="load-spinner" aria-hidden="true"></span>Loading…</div>';
+        retry();
+    });
+}

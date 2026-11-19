@@ -4,12 +4,21 @@ const TYPE_ORDER = ['Kit', 'Program', 'Concept'];
 
 // ── Data loading ──────────────────────────────────────────────────────────
 async function loadData() {
-    const [entriesRes, gotchasRes] = await Promise.all([
-        fetch('/api/entries'),
-        fetch('/api/gotchas')
-    ]);
-    allEntries = await entriesRes.json();
-    allGotchas = await gotchasRes.json();
+    // The page shows "Loading the catalogue…" (in index.html) until this
+    // finishes; if the server can't be reached, say so instead of sitting blank.
+    try {
+        const [entriesRes, gotchasRes] = await Promise.all([
+            fetch('/api/entries'),
+            fetch('/api/gotchas')
+        ]);
+        if (!entriesRes.ok) throw new Error(`entries ${entriesRes.status}`);
+        allEntries = await entriesRes.json();
+        allGotchas = gotchasRes.ok ? await gotchasRes.json() : [];
+    } catch (err) {
+        console.error('Catalogue failed to load:', err);
+        showLoadError('catalog-root', 'the catalogue', loadData);
+        return;
+    }
     allEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
     populateFilters();
     render(allEntries, false);
@@ -350,6 +359,19 @@ async function serverError(res, fallback) {
     });
 });
 
+// ── Date pickers ──────────────────────────────────────────────────────────
+// The end-date calendar starts from the chosen start date, so an end date
+// before the start can't be picked by accident (typing one is still caught
+// on submit by requestFormProblem).
+['bench', 'poc'].forEach(prefix => {
+    const start = document.getElementById(`${prefix}-date-start`);
+    const end   = document.getElementById(`${prefix}-date-end`);
+    if (!start || !end) return;
+    const sync = () => { end.min = start.value || ''; };
+    start.addEventListener('input', sync);
+    start.addEventListener('change', sync);
+});
+
 // ── Terms & conditions ────────────────────────────────────────────────────
 // Bump data-version on the terms content in index.html whenever the wording
 // changes — every request (and visitor sign-in, which reads the same markup)
@@ -410,21 +432,18 @@ async function submitBenchRequest(event) {
     const subscribe      = document.getElementById('bench-subscribe').checked;
     const msg            = document.getElementById('bench-msg');
 
-    if (!submitterName || !jobName) {
+    const problem = requestFormProblem('bench', { submitterName, jobName, dateStart, dateEnd, termsAccepted });
+    if (problem) {
         msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
-        msg.textContent   = 'Please fill in your name and a job name.';
-        return;
-    }
-
-    if (!termsAccepted) {
-        msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
-        msg.textContent   = 'Please read and accept the terms and conditions before submitting.';
-        document.getElementById('bench-terms').focus();
+        msg.textContent   = problem.text;
+        flagField(problem.field);
         return;
     }
 
     msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;';
     msg.textContent   = 'Submitting...';
+    const submitBtn   = event.target.querySelector('[type="submit"]');
+    submitBtn.disabled = true;
 
     try {
         const res = await fetch('/api/requests', {
@@ -442,15 +461,40 @@ async function submitBenchRequest(event) {
                 document.body.style.overflow = '';
                 document.getElementById('bench-form').reset();
                 msg.style.display = 'none';
+                submitBtn.disabled = false;
             }, 2500);
         } else {
             msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
             msg.textContent   = await serverError(res, 'Failed to submit — please try again.');
+            submitBtn.disabled = false;
         }
     } catch {
         msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
         msg.textContent   = 'Network error. Please try again.';
+        submitBtn.disabled = false;
     }
+}
+
+// Checks shared by the Bench Test and PoC forms. Returns the first problem and
+// the field to send the user to, so the message says exactly what to fix.
+function requestFormProblem(prefix, v) {
+    if (!v.submitterName) return { field: `${prefix}-submitter-name`, text: 'Please enter your name.' };
+    if (!v.jobName)       return { field: `${prefix}-job-name`,       text: 'Please give the job a name.' };
+    if (v.dateStart && v.dateEnd && v.dateEnd < v.dateStart)
+        return { field: `${prefix}-date-end`, text: 'The end date is before the start date — please check your dates.' };
+    if (!v.termsAccepted) return { field: `${prefix}-terms`, text: 'Please read and accept the terms and conditions before submitting.' };
+    return null;
+}
+
+// Outlines the field in red and moves the cursor to it; the outline clears as
+// soon as the user changes it.
+function flagField(id) {
+    const field = document.getElementById(id);
+    if (!field) return;
+    field.classList.add('field-error');
+    field.addEventListener(field.type === 'checkbox' ? 'change' : 'input',
+        () => field.classList.remove('field-error'), { once: true });
+    field.focus();
 }
 
 // ── Request a PoC Modal ───────────────────────────────────────────────────
@@ -486,21 +530,18 @@ async function submitPoCRequest(event) {
     const subscribe      = document.getElementById('poc-subscribe').checked;
     const msg            = document.getElementById('poc-msg');
 
-    if (!submitterName || !jobName) {
+    const problem = requestFormProblem('poc', { submitterName, jobName, dateStart, dateEnd, termsAccepted });
+    if (problem) {
         msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
-        msg.textContent   = 'Please fill in your name and a job name.';
-        return;
-    }
-
-    if (!termsAccepted) {
-        msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
-        msg.textContent   = 'Please read and accept the terms and conditions before submitting.';
-        document.getElementById('poc-terms').focus();
+        msg.textContent   = problem.text;
+        flagField(problem.field);
         return;
     }
 
     msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;';
     msg.textContent   = 'Submitting...';
+    const submitBtn   = event.target.querySelector('[type="submit"]');
+    submitBtn.disabled = true;
 
     try {
         const res = await fetch('/api/requests', {
@@ -518,14 +559,17 @@ async function submitPoCRequest(event) {
                 document.body.style.overflow = '';
                 document.getElementById('poc-form').reset();
                 msg.style.display = 'none';
+                submitBtn.disabled = false;
             }, 2500);
         } else {
             msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
             msg.textContent   = await serverError(res, 'Failed to submit — please try again.');
+            submitBtn.disabled = false;
         }
     } catch {
         msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;';
         msg.textContent   = 'Network error. Please try again.';
+        submitBtn.disabled = false;
     }
 }
 

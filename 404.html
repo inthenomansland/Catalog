@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PoC Lab — Page not found</title>
+    <meta name="robots" content="noindex, nofollow">
+    <!-- Paths start with / because this page is served for any missing URL,
+         however deep, so relative links would point at the wrong folder. -->
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .nf-wrap {
+            min-height: calc(100vh - 90px);
+            display: flex; align-items: center; justify-content: center;
+            padding: 3rem 1rem;
+        }
+        .nf-card { max-width: 520px; text-align: center; }
+        .nf-card .nf-code {
+            font-size: 5.5rem; font-weight: 800; line-height: 1;
+            color: #6DC52D; letter-spacing: -0.04em; margin: 0;
+        }
+        .nf-card h1 { font-size: 1.5rem; margin: 1rem 0 0.5rem; color: #111827; }
+        .nf-card p  { color: #4b5563; line-height: 1.6; margin: 0 0 1.75rem; }
+        .nf-actions { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+        .nf-btn {
+            display: inline-block; padding: 0.7rem 1.4rem; border-radius: 8px;
+            font-weight: 600; font-size: 0.95rem; text-decoration: none;
+        }
+        .nf-btn--primary { background: #6DC52D; color: #0d0d0d; }
+        .nf-btn--primary:hover { background: #5fb024; }
+        .nf-btn--ghost { border: 1px solid #d1d5db; color: #374151; background: #fff; }
+        .nf-btn--ghost:hover { border-color: #6DC52D; }
+        .nf-card .nf-help { margin: 2rem 0 0; font-size: 0.875rem; color: #6b7280; }
+        .nf-help a { color: #4d9a1a; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-inner">
+            <a class="header-text header-home" href="/" title="Back to the PoC Lab dashboard">
+                <div class="header-brand">
+                    <img src="/logo-header.svg" alt="proAV" class="header-logo">
+                </div>
+                <p>Proof of Concept Lab Dashboard</p>
+            </a>
+        </div>
+    </header>
+
+    <main class="nf-wrap">
+        <div class="nf-card">
+            <p class="nf-code" aria-hidden="true">404</p>
+            <h1>We couldn't find that page</h1>
+            <p>The link may be out of date, or the page has moved. Everything in the lab is still reachable from the dashboard.</p>
+            <div class="nf-actions">
+                <a class="nf-btn nf-btn--primary" href="/">Go to the dashboard</a>
+                <a class="nf-btn nf-btn--ghost" href="/product-updates">Product updates</a>
+            </div>
+            <p class="nf-help">Think something's missing? Email <a href="mailto:poc.lab@proav.com">poc.lab@proav.com</a>.</p>
+        </div>
+    </main>
+</body>
+</html>
