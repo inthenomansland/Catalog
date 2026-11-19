@@ -324,6 +324,7 @@ function submitReport(event) {
         'Submitted via proAV PoC Lab Catalogue',
     ].join('\n');
 
+    if (window.track) track('action', 'Submit Report', 'sent');
     window.location.href = `mailto:poc.lab@proav.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
     document.getElementById('submit-modal-overlay').classList.add('hidden');
@@ -453,6 +454,7 @@ async function submitBenchRequest(event) {
         });
 
         if (res.ok) {
+            if (window.track) track('action', 'Bench Test', 'sent');
             msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;';
             msg.textContent   = 'Request submitted! The team will be in touch to confirm your dates.';
             if (subscribe && submitterEmail) setNotifyPromptState('subscribed');
@@ -551,6 +553,7 @@ async function submitPoCRequest(event) {
         });
 
         if (res.ok) {
+            if (window.track) track('action', 'Request a PoC', 'sent');
             msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;';
             msg.textContent   = 'Request submitted! The team will be in touch to confirm your dates.';
             if (subscribe && submitterEmail) setNotifyPromptState('subscribed');
@@ -697,6 +700,7 @@ async function submitSubscription(event) {
         });
 
         if (res.ok) {
+            if (window.track) track('action', 'Get Notified', 'sent');
             const labels = { instant: "everything new as it's published", weekly: 'weekly digest', monthly: 'monthly digest' };
             msg.style.cssText = 'display:block;padding:0.75rem 1rem;border-radius:7px;font-size:0.875rem;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;';
             msg.textContent   = `Subscribed! You'll receive notifications for ${labels[frequency]}.`;
@@ -795,6 +799,7 @@ async function submitGotchaReport(event) {
         });
 
         if (res.ok) {
+            if (window.track) track('action', 'Known Issue', 'sent');
             msg.style.color = '#065f46';
             msg.textContent = 'Thanks! Your issue has been submitted for review.';
             document.getElementById('gotcha-submitter-input').value  = '';

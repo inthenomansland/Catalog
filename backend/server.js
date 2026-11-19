@@ -1275,6 +1275,168 @@ app.delete('/api/requests/:id', requireAuth, (req, res) => {
     res.status(204).send();
 });
 
+// ── Analytics ─────────────────────────────────────────────────────────────
+// Anonymous usage counts for the admin Analytics tab. Pages post small events
+// (track.js); only daily tallies are kept — no cookies, no names, no IP
+// addresses, no per-person trail. Unique visitors are counted by hashing
+// IP + browser with a random salt that lives in memory and changes daily, so
+// the hash can't be linked back to anyone or across days. A restart mid-day
+// starts a fresh salt, so the visitor count is approximate.
+const ANALYTICS_FILE = path.join(DATA_DIR, 'analytics.json');
+const ANALYTICS_KEEP_DAYS = 400;
+const ANALYTICS_MAX_LABELS = 500;   // per list per day, so junk posts can't bloat the file
+
+// type → the details it may carry, and which tally each detail lands in.
+const TRACK_TYPES = {
+    view:        { mobile: 'devices', desktop: 'devices' },
+    open_report: { 'Full Report': 'reports', 'Front Page': 'reports' },
+    open_deck:   { '': 'decks' },
+    search:      { results: 'searches', none: 'searchesNone' },
+    filter:      { '': 'filters' },
+    action:      { clicked: 'actionsClicked', sent: 'actionsSent' },
+};
+
+let analytics = { days: {} };
+try {
+    if (fs.existsSync(ANALYTICS_FILE)) analytics = JSON.parse(fs.readFileSync(ANALYTICS_FILE, 'utf8'));
+    if (!analytics || typeof analytics.days !== 'object') analytics = { days: {} };
+} catch (err) {
+    console.error('[analytics] could not read analytics.json, starting fresh:', err.message);
+    analytics = { days: {} };
+}
+let analyticsDirty = false;
+
+// Tallies are held in memory and saved once a minute (and on shutdown) rather
+// than rewriting the file on every click.
+function flushAnalytics() {
+    if (!analyticsDirty) return;
+    try {
+        fs.writeFileSync(ANALYTICS_FILE, JSON.stringify(analytics), 'utf8');
+        analyticsDirty = false;
+    } catch (err) {
+        console.error('[analytics] save failed:', err.message);
+    }
+}
+setInterval(flushAnalytics, 60 * 1000).unref();
+['SIGTERM', 'SIGINT'].forEach(sig => process.on(sig, () => { flushAnalytics(); process.exit(0); }));
+
+let visitorDay = { date: '', salt: '', seen: new Set() };
+function isNewVisitor(req, date) {
+    if (visitorDay.date !== date) visitorDay = { date, salt: crypto.randomBytes(16).toString('hex'), seen: new Set() };
+    const hash = crypto.createHash('sha256')
+        .update(visitorDay.salt + '|' + (req.ip || '') + '|' + (req.get('user-agent') || ''))
+        .digest('hex');
+    if (visitorDay.seen.has(hash)) return false;
+    visitorDay.seen.add(hash);
+    return true;
+}
+
+function analyticsDay(date) {
+    if (!analytics.days[date]) {
+        analytics.days[date] = { visitors: 0, views: 0, pages: {}, devices: {}, reports: {}, decks: {},
+                                 searches: {}, searchesNone: {}, filters: {}, actionsClicked: {}, actionsSent: {} };
+        // Drop days past the keep window whenever a new one starts.
+        const cutoff = new Date(Date.now() - ANALYTICS_KEEP_DAYS * 86400000).toISOString().slice(0, 10);
+        Object.keys(analytics.days).forEach(d => { if (d < cutoff) delete analytics.days[d]; });
+    }
+    return analytics.days[date];
+}
+
+function bump(list, label) {
+    if (label === '__proto__' || label === 'constructor' || label === 'prototype') return;
+    if (!Object.hasOwn(list, label) && Object.keys(list).length >= ANALYTICS_MAX_LABELS) return;
+    list[label] = (list[label] || 0) + 1;
+}
+
+const trackLimiter = rateLimit({
+    windowMs:        15 * 60 * 1000,
+    max:             1500,   // the whole office shares one IP
+    standardHeaders: true,
+    legacyHeaders:   false,
+});
+
+const BOT_UA = /bot|crawl|spider|slurp|preview|headless|lighthouse/i;
+
+app.post('/api/track', trackLimiter, (req, res) => {
+    res.status(204).end();   // answer straight away; nothing here affects the page
+    const ua = req.get('user-agent') || '';
+    if (BOT_UA.test(ua)) return;
+
+    const { type, label, detail, page } = req.body || {};
+    // Own-property checks only, so "constructor" and friends aren't accepted.
+    if (typeof type !== 'string' || !Object.hasOwn(TRACK_TYPES, type)) return;
+    const allowed = TRACK_TYPES[type];
+    const det     = typeof detail === 'string' ? detail : '';
+    if (!Object.hasOwn(allowed, det)) return;
+    const clean = s => (typeof s === 'string' ? s.replace(/\s+/g, ' ').trim().slice(0, 120) : '');
+
+    const date = new Date().toISOString().slice(0, 10);
+    const day  = analyticsDay(date);
+
+    if (type === 'view') {
+        const p = clean(page);
+        if (!p.startsWith('/')) return;
+        day.views++;
+        if (isNewVisitor(req, date)) day.visitors++;
+        bump(day.pages, p);
+        bump(day.devices, det);
+    } else {
+        // Searches are stored lower-case so "NVX" and "nvx" count together.
+        const l = type === 'search' ? clean(label).toLowerCase() : clean(label);
+        if (!l) return;
+        bump(day[allowed[det]], l);
+    }
+    analyticsDirty = true;
+});
+
+app.get('/api/admin/analytics', requireAuth, (req, res) => {
+    const span  = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), ANALYTICS_KEEP_DAYS);
+    const today = new Date();
+    const dates = [];
+    for (let i = span - 1; i >= 0; i--) dates.push(new Date(today.getTime() - i * 86400000).toISOString().slice(0, 10));
+
+    const lists = ['pages', 'devices', 'reports', 'decks', 'searches', 'searchesNone', 'filters', 'actionsClicked', 'actionsSent'];
+    const sums  = Object.fromEntries(lists.map(k => [k, {}]));
+    const daily = [];
+    let visitors = 0, views = 0;
+
+    dates.forEach(date => {
+        const d = analytics.days[date];
+        daily.push({ date, visitors: d ? d.visitors : 0, views: d ? d.views : 0 });
+        if (!d) return;
+        visitors += d.visitors; views += d.views;
+        lists.forEach(k => Object.entries(d[k] || {}).forEach(([label, n]) => { sums[k][label] = (sums[k][label] || 0) + n; }));
+    });
+
+    const top = (obj, n = 10) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n).map(([label, count]) => ({ label, count }));
+    const total = obj => Object.values(obj).reduce((a, b) => a + b, 0);
+
+    // Clicked vs sent for each button/form, side by side.
+    const actionNames = new Set([...Object.keys(sums.actionsClicked), ...Object.keys(sums.actionsSent)]);
+    const actions = [...actionNames]
+        .map(label => ({ label, clicked: sums.actionsClicked[label] || 0, sent: sums.actionsSent[label] || 0 }))
+        .sort((a, b) => (b.clicked + b.sent) - (a.clicked + a.sent));
+
+    res.json({
+        from: dates[0], to: dates[dates.length - 1], days: span,
+        totals: {
+            visitors, views,
+            reportsOpened: total(sums.reports) + total(sums.decks),
+            searches:      total(sums.searches) + total(sums.searchesNone),
+            formsSent:     total(sums.actionsSent),
+        },
+        daily,
+        pages:        top(sums.pages),
+        devices:      top(sums.devices),
+        reports:      top(sums.reports),
+        decks:        top(sums.decks),
+        searches:     top(sums.searches),
+        searchesNone: top(sums.searchesNone),
+        filters:      top(sums.filters),
+        actions,
+    });
+});
+
 // ── Not found ─────────────────────────────────────────────────────────────
 // Last in line, so only runs when nothing above matched. API callers still get
 // JSON; anyone following a dead link in a browser gets the branded page.

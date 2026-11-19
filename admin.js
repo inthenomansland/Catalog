@@ -13,8 +13,11 @@ function showAdminForm() {
     document.getElementById('login-section').classList.add('hidden');
     document.getElementById('admin-form-section').classList.remove('hidden');
     document.getElementById('admin-sidebar').classList.add('visible');
-    const stored = localStorage.getItem('poc-admin-active-section');
-    navigateTo(SECTIONS.includes(stored) ? stored : 'section-add');
+    let stored = localStorage.getItem('poc-admin-active-section');
+    // "Add New Entry" and "Entries" were merged into Reports — send anyone who
+    // last had one of those open to the new tab rather than the default.
+    if (stored === 'section-add' || stored === 'section-entries') stored = 'section-reports';
+    navigateTo(SECTIONS.includes(stored) ? stored : 'section-reports');
     loadEntries();
     loadUpdates();
     loadRequests();
@@ -22,6 +25,7 @@ function showAdminForm() {
     loadRequestOptions();
     loadSubscribers();
     loadGotchas();
+    loadAnalytics();
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────
@@ -340,8 +344,9 @@ async function deleteEntry(idx, btn) {
 }
 
 // ── Product updates ───────────────────────────────────────────────────────
-// Same flow as catalogue entries — add form on top, list with inline Edit
-// below — but kept to their own store and addressed by id, not position.
+// Same flow as catalogue entries — add form behind "+ New product update",
+// list with inline Edit below — but kept to their own store and addressed by
+// id, not position.
 let currentUpdates = [];
 
 function readUpdateFields(prefix) {
@@ -1245,8 +1250,122 @@ async function deleteGotcha(idx, btn) {
     }
 }
 
+// ── Analytics ─────────────────────────────────────────────────────────────
+// Anonymous usage counts collected by track.js on the public pages; the
+// server sums them for the chosen period (see /api/admin/analytics).
+let analyticsDays = 30;
+
+async function loadAnalytics(days) {
+    if (days) analyticsDays = days;
+    document.querySelectorAll('.an-range button').forEach(b =>
+        b.classList.toggle('active', Number(b.dataset.days) === analyticsDays));
+    const body = document.getElementById('analytics-body');
+
+    try {
+        const res = await fetch(`/api/admin/analytics?days=${analyticsDays}`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+        if (res.status === 401) { logout(); return; }
+        if (!res.ok) throw new Error(res.status);
+        renderAnalytics(await res.json());
+    } catch {
+        body.innerHTML = '<p class="an-empty" style="color:#991b1b;">Couldn\'t load analytics — please try again.</p>';
+    }
+}
+
+function renderAnalytics(a) {
+    const body = document.getElementById('analytics-body');
+    const fmt  = n => Number(n || 0).toLocaleString('en-GB');
+    const day  = d => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
+    if (!a.totals.views) {
+        body.innerHTML = `<p class="an-empty">No visits recorded in the last ${a.days} days yet. Numbers start appearing as soon as people use the dashboard.</p>`;
+        return;
+    }
+
+    const tile = (value, label, hint) => `
+        <div class="an-tile">
+            <div class="an-tile-value">${fmt(value)}</div>
+            <div class="an-tile-label">${label}</div>
+            ${hint ? `<div class="an-tile-hint">${hint}</div>` : ''}
+        </div>`;
+
+    // Ranked list with a bar scaled to the top item.
+    const list = (items, empty) => {
+        if (!items.length) return `<p class="an-empty">${empty}</p>`;
+        const max = items[0].count || 1;
+        return `<ul class="an-list">${items.map(i => `
+            <li>
+                <div class="an-row-top">
+                    <span class="an-row-label" title="${escapeHtml(i.label)}">${escapeHtml(i.label)}</span>
+                    <span class="an-row-count">${fmt(i.count)}</span>
+                </div>
+                <div class="an-bar"><span style="width:${Math.max(3, Math.round(i.count / max * 100))}%"></span></div>
+            </li>`).join('')}</ul>`;
+    };
+    const card = (title, sub, inner, warn) => `
+        <div class="an-card${warn ? ' an-card--warn' : ''}">
+            <h3>${title}</h3>
+            <p class="an-card-sub">${sub}</p>
+            ${inner}
+        </div>`;
+
+    const peak = Math.max(1, ...a.daily.map(d => d.views));
+    const chart = `
+        <div class="an-chart">${a.daily.map(d => `
+            <div class="an-col" title="${day(d.date)}: ${fmt(d.visitors)} visitor${d.visitors === 1 ? '' : 's'}, ${fmt(d.views)} page view${d.views === 1 ? '' : 's'}">
+                <div class="an-col-views"    style="height:${d.views / peak * 100}%"></div>
+                <div class="an-col-visitors" style="height:${d.visitors / peak * 100}%"></div>
+            </div>`).join('')}
+        </div>
+        <div class="an-axis"><span>${day(a.from)}</span><span>${day(a.to)}</span></div>
+        <div class="an-legend"><span class="lg-visitors">Visitors</span><span class="lg-views">Page views</span></div>`;
+
+    const PAGE_NAMES = { '/': 'Dashboard', '/index.html': 'Dashboard', '/product-updates': 'Product Updates',
+                         '/product-updates.html': 'Product Updates', '/visit': 'Visitor sign-in', '/visit.html': 'Visitor sign-in' };
+    const pages = Object.values(a.pages.reduce((acc, p) => {
+        const name = PAGE_NAMES[p.label] || p.label;
+        acc[name] = acc[name] || { label: name, count: 0 };
+        acc[name].count += p.count;
+        return acc;
+    }, {})).sort((x, y) => y.count - x.count);
+    const devices = a.devices.map(d => ({ label: d.label === 'mobile' ? 'Phone / tablet' : 'Desktop', count: d.count }));
+
+    const actions = a.actions.length ? `
+        <table class="an-table">
+            <thead><tr><th>Button</th><th class="num">Clicked</th><th class="num">Sent</th></tr></thead>
+            <tbody>${a.actions.map(r => `
+                <tr>
+                    <td>${escapeHtml(r.label)}</td>
+                    <td class="num">${fmt(r.clicked)}</td>
+                    <td class="num">${fmt(r.sent)}${r.clicked && r.sent ? ` <span class="an-rate">(${Math.round(r.sent / r.clicked * 100)}%)</span>` : ''}</td>
+                </tr>`).join('')}
+            </tbody>
+        </table>` : '<p class="an-empty">No buttons used yet.</p>';
+
+    body.innerHTML = `
+        <div class="an-tiles">
+            ${tile(a.totals.visitors,      'Visitors',        'approximate: different people per day')}
+            ${tile(a.totals.views,         'Page views')}
+            ${tile(a.totals.reportsOpened, 'Reports & decks opened')}
+            ${tile(a.totals.searches,      'Searches')}
+            ${tile(a.totals.formsSent,     'Forms sent',      'requests, reports, sign-ups')}
+        </div>
+
+        ${card('Visits per day', `Last ${a.days} days. Hover a day for its numbers.`, chart)}
+
+        <div class="an-grid">
+            ${card('Most opened reports', 'Full Report and Front Page clicks', list(a.reports, 'No reports opened yet.'))}
+            ${card('Most viewed product decks', 'View Deck clicks on Product Updates', list(a.decks, 'No decks opened yet.'))}
+            ${card('What people search for', 'Searches that found something', list(a.searches, 'No searches yet.'))}
+            ${card('Searches that found nothing', 'Worth a look: things people expected to find', list(a.searchesNone, 'Every search found something.'), true)}
+            ${card('Filters used', 'Dropdown choices on the dashboard', list(a.filters, 'No filters used yet.'))}
+            ${card('Buttons and forms', 'How many opened a form vs actually sent it', actions)}
+            ${card('Pages', 'Page views per page', list(pages, 'No page views yet.'))}
+            ${card('Devices', 'Phone vs desktop visits', list(devices, 'No visits yet.'))}
+        </div>`;
+}
+
 // ── Section navigation ────────────────────────────────────────────────────
-const SECTIONS = ['section-add', 'section-entries', 'section-updates', 'section-requests', 'section-accesslog', 'section-subscribers', 'section-issues'];
+const SECTIONS = ['section-reports', 'section-updates', 'section-requests', 'section-accesslog', 'section-analytics', 'section-subscribers', 'section-issues'];
 
 function navigateTo(id) {
     SECTIONS.forEach(sid => document.getElementById(sid).classList.add('hidden'));
@@ -1258,6 +1377,25 @@ function navigateTo(id) {
 
     localStorage.setItem('poc-admin-active-section', id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Opens or closes the add form on the Reports / Product Updates tabs.
+// kind is 'report' or 'update'; pass open to force a state, or omit to toggle.
+const ADD_PANEL_LABELS = { report: '+ New report', update: '+ New product update' };
+
+function toggleAddPanel(kind, open) {
+    const panel = document.getElementById(`${kind}-add-panel`);
+    const btn   = document.getElementById(`new-${kind}-btn`);
+    if (open === undefined) open = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', !open);
+    btn.setAttribute('aria-expanded', String(open));
+    btn.textContent = open ? 'Close form' : ADD_PANEL_LABELS[kind];
+    if (open) {
+        // Fresh form each time it opens, so an earlier "added" message doesn't linger.
+        const status = panel.querySelector('.status');
+        if (status) { status.className = 'status'; status.textContent = ''; }
+        panel.querySelector('input, select, textarea').focus();
+    }
 }
 
 function updateBadge(id, count, show) {

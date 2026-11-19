@@ -136,6 +136,7 @@ async function submitSignIn(event) {
             if (res.status === 400) loadBookings();
             return;
         }
+        if (window.track) track('action', 'Visitor sign-in', 'sent');
         const data  = await res.json();
         const first = String(data.name || body.name).split(' ')[0];
         showDone(
