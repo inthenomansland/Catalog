@@ -472,8 +472,30 @@
 
         .hidden { display: none !important; }
 
+        /* ── Mobile tab strip (replaces the sidebar on small screens) ── */
+        #admin-mobile-nav { display: none; }
+        .mnav-item {
+            flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0.55rem 0.95rem; border: 1px solid #e5e7eb; border-radius: 999px;
+            background: #fff; color: #374151; font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; white-space: nowrap;
+        }
+        .mnav-item.active { background: #0d0d0d; border-color: #0d0d0d; color: #fff; }
+        .mnav-item.active .sb-badge--gray { background: #374151; color: #e5e7eb; }
+        .mnav-item--logout { color: #6b7280; background: transparent; border-style: dashed; }
+
         @media (max-width: 768px) {
             #admin-sidebar { display: none !important; }
+            #admin-mobile-nav {
+                display: flex; gap: 0.5rem; overflow-x: auto; -webkit-overflow-scrolling: touch;
+                position: sticky; top: 0; z-index: 20;
+                margin: -1.25rem -1.25rem 1rem; padding: 0.75rem 1.25rem;
+                background: #eef0f3; border-bottom: 1px solid #e5e7eb;
+                scrollbar-width: none;
+            }
+            #admin-mobile-nav::-webkit-scrollbar { display: none; }
+            .section-panel { padding: 1.25rem 1.1rem 1.5rem; }
+            .page-header-row .btn-new { width: 100%; }
             .admin-main { padding: 1.25rem; }
             .form-grid { grid-template-columns: 1fr; }
             .form-group.full { grid-column: 1; }
@@ -528,6 +550,97 @@
         .an-table td { padding: 0.45rem 0; border-top: 1px solid #f3f4f6; color: #1f2937; }
         .an-table td.num { font-weight: 700; }
         .an-rate { color: #6b7280; font-weight: 500; }
+
+        /* ── Reports list toolbar + "needs details" tags ─── */
+        .list-toolbar { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin-bottom: 0.5rem; }
+        .list-toolbar input[type="search"] {
+            flex: 1 1 220px; padding: 0.55rem 0.75rem; border: 1px solid #d1d5db; border-radius: 7px;
+            font-size: 0.875rem; font-family: inherit;
+        }
+        .list-toolbar input[type="search"]:focus { outline: none; border-color: #6DC52D; box-shadow: 0 0 0 3px rgba(109,197,45,0.12); }
+        .list-toolbar select { width: auto; flex: 0 0 auto; }
+        .toolbar-check { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.83rem; font-weight: 600; color: #92400e; cursor: pointer; white-space: nowrap; }
+        .toolbar-check input { width: 16px; height: 16px; accent-color: #f59e0b; }
+        .list-count { font-size: 0.78rem; color: #9ca3af; margin: 0 0 0.6rem; }
+        .attn-flags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
+        .attn-flag { font-size: 0.7rem; font-weight: 600; padding: 1px 7px; border-radius: 4px; background: #fef3c7; color: #92400e; }
+
+        /* ── Undo after delete ─────────────────────────── */
+        .pending-delete { display: none !important; }
+        #undo-toasts {
+            position: fixed; left: 50%; bottom: 1.25rem; transform: translateX(-50%); z-index: 1000;
+            display: flex; flex-direction: column; gap: 0.5rem; width: min(520px, calc(100vw - 2rem));
+        }
+        .undo-toast {
+            position: relative; overflow: hidden; display: flex; align-items: center; gap: 1rem;
+            padding: 0.8rem 1rem; border-radius: 10px; background: #0d0d0d; color: #fff;
+            font-size: 0.875rem; box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+        }
+        .undo-toast-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .undo-toast button {
+            flex-shrink: 0; border: 0; background: #6DC52D; color: #0d0d0d; font-weight: 700;
+            font-size: 0.85rem; padding: 0.4rem 0.95rem; border-radius: 6px; cursor: pointer;
+        }
+        /* bar along the bottom showing how long Undo stays available */
+        .undo-toast::after {
+            content: ''; position: absolute; left: 0; bottom: 0; height: 3px; width: 100%;
+            background: #6DC52D; transform-origin: left; animation: undo-countdown var(--undo-ms, 6s) linear forwards;
+        }
+        @keyframes undo-countdown { to { transform: scaleX(0); } }
+
+        /* ── Restored draft note ───────────────────────── */
+        .draft-note {
+            display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;
+            margin-bottom: 1rem; padding: 0.6rem 0.85rem; border-radius: 7px;
+            background: #fef3c7; color: #92400e; font-size: 0.83rem; border: 1px solid #fde68a;
+        }
+        .draft-note button { border: 1px solid #f59e0b; background: #fff; color: #92400e; border-radius: 6px; padding: 0.3rem 0.75rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+
+        /* ── Overview ──────────────────────────────────── */
+        .ov-chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+        .ov-chip {
+            display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; text-align: left;
+            padding: 0.9rem 1rem; border: 1px solid #eef0f3; border-radius: 10px; background: #f9fafb; cursor: pointer;
+            font-family: inherit;
+        }
+        .ov-chip:hover { border-color: #6DC52D; }
+        .ov-chip-n { font-size: 1.7rem; font-weight: 800; color: #0f1117; line-height: 1.1; font-variant-numeric: tabular-nums; }
+        .ov-chip-label { font-size: 0.8rem; color: #6b7280; }
+        .ov-chip--warn { background: #fff7ed; border-color: #fed7aa; }
+        .ov-chip--warn .ov-chip-n { color: #c2410c; }
+        .ov-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+        .ov-card--wide { grid-column: 1 / -1; }
+        .ov-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+        .ov-list li { padding: 0.55rem 0; border-top: 1px solid #f3f4f6; }
+        .ov-list li:first-child { border-top: 0; padding-top: 0; }
+        .ov-li-main { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; font-size: 0.87rem; color: #1f2937; }
+        .ov-li-meta { font-size: 0.78rem; color: #6b7280; margin-top: 0.15rem; }
+        .ov-muted { color: #6b7280; font-weight: 400; }
+        .ov-type { font-size: 0.68rem; font-weight: 700; padding: 1px 7px; border-radius: 4px; }
+        .ov-type--bench { background: #dbeafe; color: #1d4ed8; }
+        .ov-type--poc   { background: #ede9fe; color: #6d28d9; }
+        .ov-type--issue { background: #ffedd5; color: #c2410c; }
+        .ov-now { font-size: 0.68rem; font-weight: 700; padding: 1px 7px; border-radius: 4px; background: #6DC52D; color: #0d0d0d; }
+        .ov-empty { font-size: 0.85rem; color: #9ca3af; margin: 0; }
+        .ov-empty--good { color: #3f7a12; }
+        .ov-actions { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.75rem; }
+        .ov-link { border: 0; background: none; padding: 0; color: #4a9c1f; font-weight: 700; font-size: 0.83rem; cursor: pointer; font-family: inherit; }
+        .ov-link:hover { text-decoration: underline; }
+        .ov-mini { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+        .ov-mini div { font-size: 0.78rem; color: #6b7280; }
+        .ov-mini span { display: block; font-size: 1.35rem; font-weight: 800; color: #0f1117; font-variant-numeric: tabular-nums; }
+
+        /* Phones: two tiles per row, one card per row (after the rules above so it wins) */
+        @media (max-width: 768px) {
+            .an-tiles { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+            .an-tile { padding: 0.85rem 0.9rem; }
+            .an-tile-value { font-size: 1.6rem; }
+            .an-grid { grid-template-columns: 1fr; }
+            .ov-chips { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+            .ov-chip-n { font-size: 1.4rem; }
+            .ov-grid { grid-template-columns: 1fr; }
+            .list-toolbar select { flex: 1 1 45%; }
+        }
     </style>
 </head>
 <body>
@@ -550,6 +663,9 @@
             </div>
 
             <div class="sidebar-nav">
+                <a class="sidebar-item" id="nav-overview" onclick="navigateTo('section-overview')">
+                    <span>Overview</span>
+                </a>
                 <a class="sidebar-item" id="nav-reports" onclick="navigateTo('section-reports')">
                     <span>Reports</span>
                     <span class="sb-badge sb-badge--gray" id="sb-entries" style="display:none"></span>
@@ -610,6 +726,23 @@
             <!-- Admin sections (shown after login) -->
             <div id="admin-form-section" class="hidden">
 
+                <!-- Phones/tablets: the sidebar is hidden, so the same tabs
+                     appear here as a scrolling strip (built by buildMobileNav). -->
+                <nav id="admin-mobile-nav" aria-label="Admin sections"></nav>
+
+                <!-- Overview: the landing tab — filled in by loadOverview() in admin.js -->
+                <div class="section-panel hidden" id="section-overview">
+                    <div class="page-header">
+                        <h2>Overview</h2>
+                        <p class="page-subtitle">What needs your attention, and what's happening in the lab.</p>
+                    </div>
+                    <div id="overview-body"><p class="an-empty">Loading…</p></div>
+                </div>
+
+                <!-- Suggestions for the manufacturer / category boxes (refreshSuggestions) -->
+                <datalist id="dl-manufacturers"></datalist>
+                <datalist id="dl-categories"></datalist>
+
                 <!-- Reports: the catalogue list, with the add form tucked behind
                      "+ New report" so it doesn't push the list off screen. -->
                 <div class="section-panel hidden" id="section-reports">
@@ -633,7 +766,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="manufacturer">Manufacturer <span class="required">*</span></label>
-                                <input type="text" id="manufacturer" placeholder="e.g. Sony" required>
+                                <input type="text" id="manufacturer" list="dl-manufacturers" autocomplete="off" placeholder="e.g. Sony" required>
                             </div>
                             <div class="form-group">
                                 <label for="productName">Product Name <span class="required">*</span></label>
@@ -641,7 +774,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="productCategory">Product Category</label>
-                                <input type="text" id="productCategory" placeholder="e.g. Video, Audio, Network">
+                                <input type="text" id="productCategory" list="dl-categories" autocomplete="off" placeholder="e.g. Video, Audio, Network">
                             </div>
                             <div class="form-group">
                                 <label for="testType">Test Type <span class="required">*</span></label>
@@ -688,6 +821,22 @@
                         <div class="status" id="status"></div>
                     </form>
                     </div>
+                    <div class="list-toolbar">
+                        <input type="search" id="entries-search" placeholder="Search reports…" oninput="renderEntries()" aria-label="Search reports">
+                        <select id="entries-type" onchange="renderEntries()" aria-label="Test type">
+                            <option value="">All types</option>
+                            <option value="Kit">Kit</option>
+                            <option value="Program">Program</option>
+                            <option value="Concept">Concept</option>
+                        </select>
+                        <select id="entries-sort" onchange="renderEntries()" aria-label="Sort order">
+                            <option value="added">Recently added</option>
+                            <option value="date">Test date (newest)</option>
+                            <option value="title">A–Z</option>
+                        </select>
+                        <label class="toolbar-check"><input type="checkbox" id="entries-attention" onchange="renderEntries()"> Needs details <span id="entries-attention-count"></span></label>
+                    </div>
+                    <p class="list-count" id="entries-shown"></p>
                     <div id="entries-list"></div>
                 </div>
 
@@ -713,7 +862,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="update-manufacturer">Manufacturer <span class="required">*</span></label>
-                                <input type="text" id="update-manufacturer" placeholder="e.g. Crestron">
+                                <input type="text" id="update-manufacturer" list="dl-manufacturers" autocomplete="off" placeholder="e.g. Crestron">
                             </div>
                             <div class="form-group">
                                 <label for="update-products">Products Covered</label>

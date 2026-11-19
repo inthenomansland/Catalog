@@ -207,6 +207,28 @@ function generateId()    { return crypto.randomBytes(8).toString('hex'); }
     console.log(`Backfilled ids on ${missing.length} request(s)`);
 })();
 
+// Same migration for catalogue entries (reports), which were also edited and
+// deleted by array position — a second admin tab, or a report added in
+// between, could make Edit or Delete land on the wrong report.
+(function backfillEntryIds() {
+    const data    = readData();
+    const missing = data.filter(e => !e.id);
+    if (missing.length === 0) return;
+    missing.forEach(e => { e.id = generateId(); });
+    writeData(data);
+    console.log(`Backfilled ids on ${missing.length} catalogue entr${missing.length === 1 ? 'y' : 'ies'}`);
+})();
+
+// And for known issues (gotchas), approved and deleted by array position too.
+(function backfillGotchaIds() {
+    const data    = readGotchas();
+    const missing = data.filter(g => !g.id);
+    if (missing.length === 0) return;
+    missing.forEach(g => { g.id = generateId(); });
+    writeGotchas(data);
+    console.log(`Backfilled ids on ${missing.length} known issue(s)`);
+})();
+
 // ── Lab access log ────────────────────────────────────────────────────────
 // A booking becomes a lab session at the moment it is approved: that is the
 // point the dates are confirmed and the guest is told to come in. Pending
@@ -835,10 +857,10 @@ app.get('/api/entries', (req, res) => {
 // requestId is optional and is NOT part of the entry — it names the request this
 // report answers, so the person who raised it gets told the moment it's live.
 app.post('/api/entries', requireAuth, (req, res) => {
-    const { requestId, ...fields } = req.body || {};
+    const { requestId, id: _ignoredId, addedAt: _ignoredAddedAt, ...fields } = req.body || {};
     // addedAt is what the digests go by: the report date is when the test ran,
     // which can be days before it is published here.
-    const entry = { ...fields, addedAt: new Date().toISOString() };
+    const entry = { id: generateId(), ...fields, addedAt: new Date().toISOString() };
 
     const data = readData();
     data.unshift(entry);
@@ -864,21 +886,25 @@ app.post('/api/entries', requireAuth, (req, res) => {
     notifyInstantSubscribers(entry, fulfilled && fulfilled.submitterEmail);
 });
 
-app.put('/api/entries/:index', requireAuth, (req, res) => {
-    const idx  = parseInt(req.params.index, 10);
+// Addressed by id (see backfillEntryIds). An admin page from before this change
+// sends a list position instead, which matches no id and gets a 404 rather
+// than touching whichever report now sits at that position.
+app.put('/api/entries/:id', requireAuth, (req, res) => {
     const data = readData();
-    if (isNaN(idx) || idx < 0 || idx >= data.length) return res.status(404).json({ error: 'Not found' });
-    // The admin form sends only the fields it edits, so carry addedAt over.
-    const { addedAt } = data[idx];
-    data[idx] = addedAt ? { ...req.body, addedAt } : req.body;
+    const idx  = data.findIndex(e => e.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Not found — reload the page and try again.' });
+    // The admin form sends only the fields it edits, so carry id and addedAt over.
+    const { id, addedAt } = data[idx];
+    const { id: _ignoredId, addedAt: _ignoredAddedAt, ...fields } = req.body || {};
+    data[idx] = addedAt ? { id, ...fields, addedAt } : { id, ...fields };
     writeData(data);
     res.json(data[idx]);
 });
 
-app.delete('/api/entries/:index', requireAuth, (req, res) => {
-    const idx  = parseInt(req.params.index, 10);
+app.delete('/api/entries/:id', requireAuth, (req, res) => {
     const data = readData();
-    if (isNaN(idx) || idx < 0 || idx >= data.length) return res.status(404).json({ error: 'Not found' });
+    const idx  = data.findIndex(e => e.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Not found — reload the page and try again.' });
     data.splice(idx, 1);
     writeData(data);
     res.status(204).send();
@@ -968,7 +994,7 @@ app.post('/api/gotchas/suggest', submitLimiter, async (req, res) => {
     const { submittedBy, issue, workaround } = req.body || {};
     if (!submittedBy || !issue || !workaround) return res.status(400).json({ error: 'submittedBy, issue and workaround are required' });
     const data  = readGotchas();
-    const entry = { submittedBy, issue, workaround, date: new Date().toISOString().split('T')[0], status: 'pending' };
+    const entry = { id: generateId(), submittedBy, issue, workaround, date: new Date().toISOString().split('T')[0], status: 'pending' };
     data.push(entry);
     writeGotchas(data);
     res.status(201).json(entry);
@@ -980,26 +1006,27 @@ app.post('/api/gotchas', requireAuth, (req, res) => {
     const { issue, workaround } = req.body || {};
     if (!issue || !workaround) return res.status(400).json({ error: 'issue and workaround are required' });
     const data  = readGotchas();
-    const entry = { issue, workaround, date: new Date().toISOString().split('T')[0], status: 'approved' };
+    const entry = { id: generateId(), issue, workaround, date: new Date().toISOString().split('T')[0], status: 'approved' };
     data.unshift(entry);
     writeGotchas(data);
     res.status(201).json(entry);
 });
 
 // ── Gotchas (admin approve pending) ──────────────────────────────────────
-app.put('/api/gotchas/:index/approve', requireAuth, (req, res) => {
-    const idx  = parseInt(req.params.index, 10);
+// Addressed by id (see backfillGotchaIds); an old list position matches nothing.
+app.put('/api/gotchas/:id/approve', requireAuth, (req, res) => {
     const data = readGotchas();
-    if (isNaN(idx) || idx < 0 || idx >= data.length) return res.status(404).json({ error: 'Not found' });
+    const idx  = data.findIndex(g => g.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Not found — reload the page and try again.' });
     data[idx].status = 'approved';
     writeGotchas(data);
     res.json(data[idx]);
 });
 
-app.delete('/api/gotchas/:index', requireAuth, (req, res) => {
-    const idx  = parseInt(req.params.index, 10);
+app.delete('/api/gotchas/:id', requireAuth, (req, res) => {
     const data = readGotchas();
-    if (isNaN(idx) || idx < 0 || idx >= data.length) return res.status(404).json({ error: 'Not found' });
+    const idx  = data.findIndex(g => g.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Not found — reload the page and try again.' });
     data.splice(idx, 1);
     writeGotchas(data);
     res.status(204).send();

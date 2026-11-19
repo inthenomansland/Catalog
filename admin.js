@@ -9,15 +9,17 @@ function showLoginForm() {
     document.getElementById('admin-password').focus();
 }
 
-function showAdminForm() {
+function showAdminForm(fromLogin) {
     document.getElementById('login-section').classList.add('hidden');
     document.getElementById('admin-form-section').classList.remove('hidden');
     document.getElementById('admin-sidebar').classList.add('visible');
+    buildMobileNav();
     let stored = localStorage.getItem('poc-admin-active-section');
     // "Add New Entry" and "Entries" were merged into Reports — send anyone who
     // last had one of those open to the new tab rather than the default.
     if (stored === 'section-add' || stored === 'section-entries') stored = 'section-reports';
-    navigateTo(SECTIONS.includes(stored) ? stored : 'section-reports');
+    // A fresh login opens on the Overview; a reload goes back to the tab you were on.
+    navigateTo(fromLogin ? 'section-overview' : (SECTIONS.includes(stored) ? stored : 'section-overview'));
     loadEntries();
     loadUpdates();
     loadRequests();
@@ -26,6 +28,7 @@ function showAdminForm() {
     loadSubscribers();
     loadGotchas();
     loadAnalytics();
+    restoreDrafts();
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────
@@ -47,7 +50,7 @@ async function login(event) {
             authToken = token;
             localStorage.setItem('poc-admin-token', token);
             document.getElementById('admin-password').value = '';
-            showAdminForm();
+            showAdminForm(true);
         } else {
             errorEl.textContent = 'Incorrect password.';
             document.getElementById('admin-password').value = '';
@@ -127,6 +130,7 @@ async function submitEntry(event) {
                 ? `"${entry.title}" added — ${requesterLabel} has been emailed.`
                 : `"${entry.title}" added to catalogue.`;
             document.getElementById('entry-form').reset();
+            clearDraft('report');
             document.getElementById('date').value = new Date().toISOString().split('T')[0];
             loadEntries();
             loadRequests();
@@ -146,41 +150,108 @@ async function submitEntry(event) {
 // ── Existing entries list ─────────────────────────────────────────────────
 async function loadEntries() {
     const list = document.getElementById('entries-list');
-    list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">Loading...</p>';
+    if (!currentEntries.length) list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">Loading...</p>';
 
     try {
         const res      = await fetch('/api/entries');
         currentEntries = await res.json();
-
-        if (currentEntries.length === 0) {
-            list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">No entries yet.</p>';
-            return;
-        }
-
         updateBadge('entries-count-badge', currentEntries.length, true);
         updateBadge('sb-entries', currentEntries.length, true);
-
-        list.innerHTML = '';
-        currentEntries.forEach((entry, idx) => {
-            const row = document.createElement('div');
-            row.className = 'entry-row';
-            row.id = `entry-row-${idx}`;
-            row.innerHTML = `
-                <div class="entry-row-info">
-                    <span class="entry-row-title">${escapeHtml(entry.title)}</span>
-                    <span class="entry-row-meta">${escapeHtml(entry.manufacturer)} &middot; ${entry.testType} &middot; ${entry.date}</span>
-                </div>
-                <div class="entry-row-actions">
-                    <button class="entry-row-edit" onclick="openEditForm(${idx})">Edit</button>
-                    <button class="entry-row-delete" onclick="deleteEntry(${idx}, this)">Delete</button>
-                </div>
-            `;
-            list.appendChild(row);
-        });
+        refreshSuggestions();
+        renderEntries();
+        restorePendingEdit('report');
     } catch {
         list.innerHTML = '<p style="color:#991b1b;font-size:0.85rem;">Failed to load entries.</p>';
     }
 }
+
+// What a report is missing that the public catalogue would show. Category
+// feeds the dashboard filter; without a report link the card has no button.
+function entryProblems(e) {
+    const p = [];
+    if (!e.productCategory || !String(e.productCategory).trim()) p.push('No category');
+    if (!e.productName || !String(e.productName).trim())         p.push('No product name');
+    if (!e.fullReport)                                           p.push('No report link');
+    return p;
+}
+
+// Draws the Reports list from currentEntries using the search box, type
+// filter, sort and "needs attention" tick — no refetch when those change.
+function renderEntries() {
+    const list   = document.getElementById('entries-list');
+    const q      = (document.getElementById('entries-search')?.value || '').trim().toLowerCase();
+    const type   = document.getElementById('entries-type')?.value || '';
+    const sort   = document.getElementById('entries-sort')?.value || 'added';
+    const attnOn = !!document.getElementById('entries-attention')?.checked;
+
+    const needing = currentEntries.filter(e => entryProblems(e).length).length;
+    const attnCount = document.getElementById('entries-attention-count');
+    if (attnCount) attnCount.textContent = needing ? `(${needing})` : '';
+
+    let rows = currentEntries.filter(e => {
+        if (type && e.testType !== type) return false;
+        if (attnOn && !entryProblems(e).length) return false;
+        if (q) {
+            const hay = [e.title, e.manufacturer, e.productName, e.productCategory, e.summary, (e.tags || []).join(' ')]
+                .join(' ').toLowerCase();
+            if (!hay.includes(q)) return false;
+        }
+        return true;
+    });
+    // "added" keeps the server's order: newest added first.
+    if (sort === 'date')  rows = [...rows].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+    if (sort === 'title') rows = [...rows].sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), 'en-GB'));
+
+    const shown = document.getElementById('entries-shown');
+    if (shown) shown.textContent = rows.length === currentEntries.length
+        ? `${rows.length} report${rows.length === 1 ? '' : 's'}`
+        : `Showing ${rows.length} of ${currentEntries.length}`;
+
+    if (currentEntries.length === 0) {
+        list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">No reports yet.</p>';
+        return;
+    }
+    if (rows.length === 0) {
+        list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">No reports match — try a different search or clear the filters.</p>';
+        return;
+    }
+
+    list.innerHTML = '';
+    rows.forEach(entry => {
+        const idx   = entry.id;
+        const flags = entryProblems(entry).map(f => `<span class="attn-flag">${f}</span>`).join('');
+        const row   = document.createElement('div');
+        row.className = 'entry-row';
+        row.id = `entry-row-${idx}`;
+        row.innerHTML = `
+            <div class="entry-row-info">
+                <span class="entry-row-title">${escapeHtml(entry.title)}</span>
+                <span class="entry-row-meta">${escapeHtml(entry.manufacturer)} &middot; ${escapeHtml(entry.testType)} &middot; ${escapeHtml(entry.date)}</span>
+                ${flags ? `<span class="attn-flags">${flags}</span>` : ''}
+            </div>
+            <div class="entry-row-actions">
+                <button class="entry-row-edit" onclick="openEditForm('${idx}')">Edit</button>
+                <button class="entry-row-delete" onclick="deleteEntry('${idx}', this)">Delete</button>
+            </div>
+        `;
+        list.appendChild(row);
+    });
+}
+
+function clearEntryFilters() {
+    ['entries-search', 'entries-type'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    const attn = document.getElementById('entries-attention'); if (attn) attn.checked = false;
+    renderEntries();
+}
+
+// From the Overview: jump to Reports showing only those that need fixing.
+function showReportsNeedingAttention() {
+    navigateTo('section-reports');
+    clearEntryFilters();
+    document.getElementById('entries-attention').checked = true;
+    renderEntries();
+}
+
 
 // ── Edit entry ────────────────────────────────────────────────────────────
 function escapeHtml(str) {
@@ -188,14 +259,18 @@ function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// idx here is the report's id (a short hex string), not its list position.
 function openEditForm(idx) {
-    // Close any other open edit forms
-    document.querySelectorAll('.entry-edit-form').forEach(f => f.remove());
-    document.querySelectorAll('.entry-row-edit').forEach(b => {
+    // Close any other open edit forms, and point their buttons back at "open"
+    // (otherwise a row switched away from would need two clicks to reopen).
+    document.querySelectorAll('#entries-list .entry-edit-form').forEach(f => f.remove());
+    document.querySelectorAll('#entries-list .entry-row-edit').forEach(b => {
         b.textContent = 'Edit';
+        const rowId = b.closest('.entry-row').id.replace('entry-row-', '');
+        b.onclick = () => openEditForm(rowId);
     });
 
-    const entry  = currentEntries[idx];
+    const entry  = currentEntries.find(e => e.id === idx);
     const row    = document.getElementById(`entry-row-${idx}`);
     const editBtn = row.querySelector('.entry-row-edit');
     editBtn.textContent = 'Close';
@@ -212,7 +287,7 @@ function openEditForm(idx) {
             </div>
             <div class="form-group">
                 <label>Manufacturer</label>
-                <input type="text" id="edit-manufacturer-${idx}" value="${escapeHtml(entry.manufacturer)}">
+                <input type="text" list="dl-manufacturers" autocomplete="off" id="edit-manufacturer-${idx}" value="${escapeHtml(entry.manufacturer)}">
             </div>
             <div class="form-group">
                 <label>Product Name</label>
@@ -220,7 +295,7 @@ function openEditForm(idx) {
             </div>
             <div class="form-group">
                 <label>Product Category</label>
-                <input type="text" id="edit-productCategory-${idx}" value="${escapeHtml(entry.productCategory)}">
+                <input type="text" list="dl-categories" autocomplete="off" id="edit-productCategory-${idx}" value="${escapeHtml(entry.productCategory)}">
             </div>
             <div class="form-group">
                 <label>Test Type</label>
@@ -252,8 +327,8 @@ function openEditForm(idx) {
             </div>
         </div>
         <div class="entry-edit-actions">
-            <button class="btn-submit" onclick="saveEntry(${idx})" style="padding:0.5rem 1.25rem;font-size:0.85rem;">Save Changes</button>
-            <button class="btn-logout" onclick="closeEditForm(${idx})">Cancel</button>
+            <button class="btn-submit" onclick="saveEntry('${idx}')" style="padding:0.5rem 1.25rem;font-size:0.85rem;">Save Changes</button>
+            <button class="btn-logout" onclick="closeEditForm('${idx}')">Cancel</button>
             <span class="entry-edit-status" id="edit-status-${idx}"></span>
         </div>
     `;
@@ -294,7 +369,7 @@ async function saveEntry(idx) {
     };
 
     try {
-        const res = await fetch(`/api/entries/${idx}`, {
+        const res = await fetch(`/api/entries/${encodeURIComponent(idx)}`, {
             method:  'PUT',
             headers: {
                 'Content-Type':  'application/json',
@@ -303,14 +378,14 @@ async function saveEntry(idx) {
             body: JSON.stringify(updated)
         });
 
-        if (res.status === 401) { logout(); return; }
+        if (res.status === 401) { stashPendingEdit('report', idx); logout(); return; }
 
         if (res.ok) {
             statusEl.textContent = 'Saved!';
             statusEl.style.color = '#065f46';
             setTimeout(() => { closeEditForm(idx); loadEntries(); }, 600);
         } else {
-            statusEl.textContent = 'Failed to save.';
+            statusEl.textContent = await adminError(res, 'Failed to save.');
             statusEl.style.color = '#991b1b';
         }
     } catch {
@@ -319,28 +394,24 @@ async function saveEntry(idx) {
     }
 }
 
-// ── Delete entry ──────────────────────────────────────────────────────────
-async function deleteEntry(idx, btn) {
-    if (!confirm('Delete this entry? This cannot be undone.')) return;
-    btn.disabled = true;
-
+// The server's own explanation when it gives one (e.g. "Not found — reload
+// the page and try again."), otherwise the fallback.
+async function adminError(res, fallback) {
     try {
-        const res = await fetch(`/api/entries/${idx}`, {
-            method:  'DELETE',
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-
-        if (res.status === 401) { logout(); return; }
-        if (res.ok) {
-            loadEntries();
-        } else {
-            alert('Failed to delete. Please try again.');
-            btn.disabled = false;
-        }
+        const body = await res.json();
+        return body && body.error ? body.error : fallback;
     } catch {
-        alert('Network error.');
-        btn.disabled = false;
+        return fallback;
     }
+}
+
+// ── Delete entry ──────────────────────────────────────────────────────────
+function deleteEntry(id, btn) {
+    deleteWithUndo({
+        rowId: `entry-row-${id}`, btn, what: 'Report',
+        url:   `/api/entries/${encodeURIComponent(id)}`,
+        after: () => { loadEntries(); loadOverview(); },
+    });
 }
 
 // ── Product updates ───────────────────────────────────────────────────────
@@ -401,6 +472,7 @@ async function submitUpdate(event) {
             status.className   = 'status success';
             status.textContent = `"${update.title}" added to Product Updates.`;
             document.getElementById('update-form').reset();
+            clearDraft('update');
             document.getElementById('update-meetingDate').value = new Date().toISOString().split('T')[0];
             loadUpdates();
         } else {
@@ -426,6 +498,7 @@ async function loadUpdates() {
 
         updateBadge('updates-count-badge', currentUpdates.length, true);
         updateBadge('sb-updates',          currentUpdates.length, true);
+        refreshSuggestions();
 
         if (currentUpdates.length === 0) {
             list.innerHTML = '<p style="color:#6b7280;font-size:0.85rem;">No product updates yet.</p>';
@@ -449,6 +522,7 @@ async function loadUpdates() {
             `;
             list.appendChild(row);
         });
+        restorePendingEdit('update');
     } catch {
         list.innerHTML = '<p style="color:#991b1b;font-size:0.85rem;">Failed to load product updates.</p>';
     }
@@ -479,7 +553,7 @@ function openUpdateEditForm(id) {
             </div>
             <div class="form-group">
                 <label>Manufacturer</label>
-                <input type="text" id="${p}manufacturer" value="${escapeHtml(u.manufacturer)}">
+                <input type="text" list="dl-manufacturers" autocomplete="off" id="${p}manufacturer" value="${escapeHtml(u.manufacturer)}">
             </div>
             <div class="form-group">
                 <label>Products Covered</label>
@@ -543,7 +617,7 @@ async function saveUpdate(id) {
             body:    JSON.stringify(updated)
         });
 
-        if (res.status === 401) { logout(); return; }
+        if (res.status === 401) { stashPendingEdit('update', id); logout(); return; }
 
         if (res.ok) {
             statusEl.textContent = 'Saved!';
@@ -559,23 +633,13 @@ async function saveUpdate(id) {
     }
 }
 
-async function deleteUpdate(id, btn) {
-    if (!confirm('Delete this product update? The deck on SharePoint is not affected.')) return;
-    btn.disabled = true;
-
-    try {
-        const res = await fetch(`/api/product-updates/${encodeURIComponent(id)}`, {
-            method:  'DELETE',
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-
-        if (res.status === 401) { logout(); return; }
-        if (res.ok) loadUpdates();
-        else { alert('Failed to delete. Please try again.'); btn.disabled = false; }
-    } catch {
-        alert('Network error.');
-        btn.disabled = false;
-    }
+function deleteUpdate(id, btn) {
+    // The deck itself stays on SharePoint; only the listing goes.
+    deleteWithUndo({
+        rowId: `update-row-${id}`, btn, what: 'Product update',
+        url:   `/api/product-updates/${encodeURIComponent(id)}`,
+        after: loadUpdates,
+    });
 }
 
 // ── Link a report to an open request ──────────────────────────────────────
@@ -985,21 +1049,13 @@ async function setRequestStatus(id, action, btn, failMsg) {
 function completeRequest(id, btn) { setRequestStatus(id, 'complete', btn, 'Failed to mark as completed.'); }
 function reopenRequest(id, btn)   { setRequestStatus(id, 'reopen',   btn, 'Failed to reopen.'); }
 
-async function deleteRequest(id, btn) {
-    if (!confirm('Delete this request? This cannot be undone.')) return;
-    btn.disabled = true;
-    try {
-        const res = await fetch(`/api/requests/${encodeURIComponent(id)}`, {
-            method:  'DELETE',
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-        if (res.status === 401) { logout(); return; }
-        if (res.ok) { loadRequests(); loadRequestOptions(); }
-        else { alert('Failed to delete.'); btn.disabled = false; }
-    } catch {
-        alert('Network error.');
-        btn.disabled = false;
-    }
+function deleteRequest(id, btn) {
+    deleteWithUndo({
+        rowId: `request-row-${id}`, btn,
+        what:  btn.textContent.trim() === 'Decline' ? 'Request declined:' : 'Request',
+        url:   `/api/requests/${encodeURIComponent(id)}`,
+        after: () => { loadRequests(); loadRequestOptions(); loadOverview(); },
+    });
 }
 
 // ── Subscribers ───────────────────────────────────────────────────────────
@@ -1036,6 +1092,7 @@ async function loadSubscribers() {
         active.forEach(sub => {
             const row = document.createElement('div');
             row.className = 'entry-row';
+            row.id = `sub-row-${sub.token}`;
             row.innerHTML = `
                 <div class="entry-row-info">
                     <span class="entry-row-title">${escapeHtml(sub.email)}</span>
@@ -1056,6 +1113,7 @@ async function loadSubscribers() {
                 const when = sub.unsubscribedDate ? sub.unsubscribedDate.split('T')[0] : '—';
                 const row  = document.createElement('div');
                 row.className = 'entry-row';
+                row.id = `sub-row-${sub.token}`;
                 row.style.opacity = '0.55';
                 row.innerHTML = `
                     <div class="entry-row-info">
@@ -1072,23 +1130,12 @@ async function loadSubscribers() {
     }
 }
 
-async function deleteSubscriber(token, btn) {
-    if (!confirm('Remove this subscriber?')) return;
-    btn.disabled = true;
-
-    try {
-        const res = await fetch(`/api/admin/subscribers/${encodeURIComponent(token)}`, {
-            method:  'DELETE',
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-
-        if (res.status === 401) { logout(); return; }
-        if (res.ok) loadSubscribers();
-        else { alert('Failed to remove subscriber.'); btn.disabled = false; }
-    } catch {
-        alert('Network error.');
-        btn.disabled = false;
-    }
+function deleteSubscriber(token, btn) {
+    deleteWithUndo({
+        rowId: `sub-row-${token}`, btn, what: 'Subscriber removed:',
+        url:   `/api/admin/subscribers/${encodeURIComponent(token)}`,
+        after: loadSubscribers,
+    });
 }
 
 // ── Gotchas ───────────────────────────────────────────────────────────────
@@ -1170,6 +1217,7 @@ async function loadGotchas() {
             pending.forEach(g => {
                 const row = document.createElement('div');
                 row.className = 'entry-row';
+                row.id = `gotcha-row-${g.id}`;
                 row.style.cssText = 'border-left:3px solid #f97316;padding-left:0.6rem;background:#fff7ed;';
                 row.innerHTML = `
                     <div class="entry-row-info">
@@ -1178,8 +1226,8 @@ async function loadGotchas() {
                         ${g.submittedBy ? `<span class="entry-row-meta" style="color:#92400e;">Submitted by: ${escapeHtml(g.submittedBy)}</span>` : ''}
                     </div>
                     <div class="entry-row-actions">
-                        <button class="entry-row-approve" onclick="approveGotcha(${g._idx}, this)">Approve</button>
-                        <button class="entry-row-delete"  onclick="deleteGotcha(${g._idx}, this)">Reject</button>
+                        <button class="entry-row-approve" onclick="approveGotcha('${g.id}', this)">Approve</button>
+                        <button class="entry-row-delete"  onclick="deleteGotcha('${g.id}', this, true)">Reject</button>
                     </div>
                 `;
                 list.appendChild(row);
@@ -1197,13 +1245,14 @@ async function loadGotchas() {
             approved.forEach(g => {
                 const row = document.createElement('div');
                 row.className = 'entry-row';
+                row.id = `gotcha-row-${g.id}`;
                 row.innerHTML = `
                     <div class="entry-row-info">
                         <span class="entry-row-title">${escapeHtml(g.issue)}</span>
                         <span class="entry-row-meta">${escapeHtml(g.workaround)}</span>
                         ${g.submittedBy ? `<span class="entry-row-meta" style="color:#6b7280;">Submitted by: ${escapeHtml(g.submittedBy)}</span>` : ''}
                     </div>
-                    <button class="entry-row-delete" onclick="deleteGotcha(${g._idx}, this)">Delete</button>
+                    <button class="entry-row-delete" onclick="deleteGotcha('${g.id}', this)">Delete</button>
                 `;
                 list.appendChild(row);
             });
@@ -1217,7 +1266,7 @@ async function approveGotcha(idx, btn) {
     btn.disabled = true;
 
     try {
-        const res = await fetch(`/api/gotchas/${idx}/approve`, {
+        const res = await fetch(`/api/gotchas/${encodeURIComponent(idx)}/approve`, {
             method:  'PUT',
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
@@ -1231,23 +1280,12 @@ async function approveGotcha(idx, btn) {
     }
 }
 
-async function deleteGotcha(idx, btn) {
-    if (!confirm('Delete this known issue?')) return;
-    btn.disabled = true;
-
-    try {
-        const res = await fetch(`/api/gotchas/${idx}`, {
-            method:  'DELETE',
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-
-        if (res.status === 401) { logout(); return; }
-        if (res.ok) loadGotchas();
-        else { alert('Failed to delete.'); btn.disabled = false; }
-    } catch {
-        alert('Network error.');
-        btn.disabled = false;
-    }
+function deleteGotcha(id, btn, rejecting) {
+    deleteWithUndo({
+        rowId: `gotcha-row-${id}`, btn, what: rejecting ? 'Known issue rejected:' : 'Known issue',
+        url:   `/api/gotchas/${encodeURIComponent(id)}`,
+        after: () => { loadGotchas(); loadOverview(); },
+    });
 }
 
 // ── Analytics ─────────────────────────────────────────────────────────────
@@ -1364,8 +1402,339 @@ function renderAnalytics(a) {
         </div>`;
 }
 
+// ── Delete with Undo ──────────────────────────────────────────────────────
+// Deleting hides the row straight away and shows "… deleted · Undo" for a few
+// seconds; the server is only told once that time is up. Everything deleted
+// here is addressed by id, so a delete that fires late can't hit a different
+// row. Leaving the page sends any waiting deletes immediately.
+const UNDO_SECONDS   = 6;
+const pendingDeletes = new Map();   // rowId → { url, token, after, timer, toast }
+
+function deleteWithUndo({ rowId, btn, what, url, after }) {
+    if (pendingDeletes.has(rowId)) return;
+    const row   = document.getElementById(rowId) || btn.closest('.entry-row');
+    // The row title's own text, without tags like "Bench Test" in front of it.
+    const titleEl = row?.querySelector('.entry-row-title');
+    let title = '';
+    if (titleEl) {
+        const bare = titleEl.cloneNode(true);
+        bare.querySelectorAll('span').forEach(s => s.remove());
+        title = (bare.textContent.trim() || titleEl.textContent).replace(/\s+/g, ' ').trim();
+    }
+    const next  = row?.nextElementSibling;
+    if (next && next.classList.contains('entry-edit-form')) next.remove();   // an open edit form goes too
+    row?.classList.add('pending-delete');
+
+    const text = what.endsWith(':') ? `${what} “${title}”` : `${what} deleted: “${title}”`;
+    const p = { url, token: authToken, after };
+    p.toast = showUndoToast(text, () => {
+        clearTimeout(p.timer);
+        pendingDeletes.delete(rowId);
+        document.getElementById(rowId)?.classList.remove('pending-delete');
+    });
+    p.timer = setTimeout(() => commitDelete(rowId), UNDO_SECONDS * 1000);
+    pendingDeletes.set(rowId, p);
+}
+
+async function commitDelete(rowId) {
+    const p = pendingDeletes.get(rowId);
+    if (!p) return;
+    pendingDeletes.delete(rowId);
+    p.toast.remove();
+    try {
+        const res = await fetch(p.url, { method: 'DELETE', headers: { 'Authorization': `Bearer ${p.token}` } });
+        if (res.status === 401) { logout(); return; }
+        if (!res.ok && res.status !== 404) alert(await adminError(res, 'Delete failed — it has been put back.'));
+    } catch {
+        alert('Network error — the delete did not go through, so it has been put back.');
+    }
+    p.after();
+}
+
+function showUndoToast(text, onUndo) {
+    let stack = document.getElementById('undo-toasts');
+    if (!stack) {
+        stack = document.createElement('div');
+        stack.id = 'undo-toasts';
+        stack.setAttribute('aria-live', 'polite');
+        document.body.appendChild(stack);
+    }
+    const toast = document.createElement('div');
+    toast.className = 'undo-toast';
+    toast.style.setProperty('--undo-ms', `${UNDO_SECONDS * 1000}ms`);
+    const msg = document.createElement('span');
+    msg.className = 'undo-toast-text';
+    msg.textContent = text;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'Undo';
+    btn.addEventListener('click', () => { onUndo(); toast.remove(); });
+    toast.append(msg, btn);
+    stack.appendChild(toast);
+    return toast;
+}
+
+// A list refresh during the undo window would redraw the row; keep it hidden.
+new MutationObserver(() => {
+    pendingDeletes.forEach((_, rowId) => document.getElementById(rowId)?.classList.add('pending-delete'));
+}).observe(document.documentElement, { childList: true, subtree: true });
+
+window.addEventListener('pagehide', () => {
+    pendingDeletes.forEach(p => {
+        clearTimeout(p.timer);
+        fetch(p.url, { method: 'DELETE', headers: { 'Authorization': `Bearer ${p.token}` }, keepalive: true });
+    });
+    pendingDeletes.clear();
+});
+
+// ── Overview ──────────────────────────────────────────────────────────────
+// The landing tab: what's waiting on you, who's booked in or on site, how the
+// dashboard was used this week, and reports that need tidying. Built from the
+// same endpoints the other tabs use, and refreshed whenever it's opened.
+async function loadOverview() {
+    const body = document.getElementById('overview-body');
+    if (!body || !authToken) return;
+    const headers = { 'Authorization': `Bearer ${authToken}` };
+    const today   = todayLocal();
+    let expired = false;
+    const get = url => fetch(url, { headers })
+        .then(r => { if (r.status === 401) expired = true; return r.ok ? r.json() : null; })
+        .catch(() => null);
+
+    const [requests, gotchas, visits, stats, entries] = await Promise.all([
+        get('/api/requests'), get('/api/gotchas/all'),
+        get(`/api/admin/access-log?from=${today}&to=${today}`),
+        get('/api/admin/analytics?days=7'), get('/api/entries'),
+    ]);
+    if (expired) { logout(); return; }
+
+    const fmt      = n => Number(n || 0).toLocaleString('en-GB');
+    const niceDate = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+    const range    = (a, b) => !a ? 'No dates given' : (b && b !== a ? `${niceDate(a)} – ${niceDate(b)}` : niceDate(a));
+    const typeTag  = t => `<span class="ov-type ov-type--${t === 'bench' ? 'bench' : 'poc'}">${t === 'bench' ? 'Bench Test' : 'PoC'}</span>`;
+    const failed   = what => `<p class="ov-empty" style="color:#991b1b;">Couldn't load ${what}.</p>`;
+
+    const pendingReqs   = (requests || []).filter(r => r.status === 'pending');
+    const pendingIssues = (gotchas  || []).filter(g => g.status === 'pending');
+    const booked = (requests || [])
+        .filter(r => r.status === 'approved' && r.dateStart && (r.dateEnd || r.dateStart) >= today)
+        .sort((a, b) => a.dateStart.localeCompare(b.dateStart))
+        .slice(0, 6);
+    const onSite    = (visits || []).filter(v => v.source === 'visit');
+    const attention = (entries || []).filter(e => entryProblems(e).length);
+
+    const chip = (n, label, go, warn) => `
+        <button type="button" class="ov-chip${warn && n ? ' ov-chip--warn' : ''}" onclick="${go}">
+            <span class="ov-chip-n">${fmt(n)}</span><span class="ov-chip-label">${label}</span>
+        </button>`;
+
+    const waiting = !requests && !gotchas ? failed('requests') : (pendingReqs.length + pendingIssues.length === 0
+        ? '<p class="ov-empty ov-empty--good">Nothing waiting — you\'re all caught up.</p>'
+        : `<ul class="ov-list">
+            ${pendingReqs.map(r => `
+                <li>
+                    <div class="ov-li-main">${typeTag(r.type)}<strong>${escapeHtml(r.jobName || 'Untitled request')}</strong></div>
+                    <div class="ov-li-meta">${escapeHtml(r.submitterName || '—')} · ${range(r.dateStart, r.dateEnd)}</div>
+                </li>`).join('')}
+            ${pendingIssues.map(g => `
+                <li>
+                    <div class="ov-li-main"><span class="ov-type ov-type--issue">Known issue</span><strong>${escapeHtml(g.issue)}</strong></div>
+                    <div class="ov-li-meta">${g.submittedBy ? 'Suggested by ' + escapeHtml(g.submittedBy) : 'Suggested'}${g.date ? ' · ' + escapeHtml(g.date) : ''}</div>
+                </li>`).join('')}
+           </ul>
+           <div class="ov-actions">
+               ${pendingReqs.length   ? `<button type="button" class="ov-link" onclick="navigateTo('section-requests')">Review requests →</button>` : ''}
+               ${pendingIssues.length ? `<button type="button" class="ov-link" onclick="navigateTo('section-issues')">Review known issues →</button>` : ''}
+           </div>`);
+
+    const bookedHtml = !requests ? failed('bookings') : (booked.length === 0
+        ? '<p class="ov-empty">No approved bookings coming up.</p>'
+        : `<ul class="ov-list">${booked.map(r => {
+            const now = r.dateStart <= today;
+            return `
+                <li>
+                    <div class="ov-li-main">${now ? '<span class="ov-now">On now</span>' : ''}${typeTag(r.type)}<strong>${escapeHtml(r.jobName || 'Untitled')}</strong></div>
+                    <div class="ov-li-meta">${range(r.dateStart, r.dateEnd)} · ${escapeHtml(r.submitterName || '—')}</div>
+                </li>`;
+        }).join('')}</ul>`);
+
+    const visitsHtml = !visits ? failed("today's visitors") : (onSite.length === 0
+        ? '<p class="ov-empty">Nobody has signed in today.</p>'
+        : `<ul class="ov-list">${onSite.map(v => `
+            <li>
+                <div class="ov-li-main"><strong>${escapeHtml(v.name || 'Unknown')}</strong>${v.company ? `<span class="ov-muted"> · ${escapeHtml(v.company)}</span>` : ''}</div>
+                <div class="ov-li-meta">Signed in ${timeOf(v.signedInAt)}${v.host ? ' · meeting ' + escapeHtml(v.host) : ''}</div>
+            </li>`).join('')}</ul>`);
+
+    const t = stats && stats.totals;
+    const weekHtml = !t ? failed('analytics') : `
+        <div class="ov-mini">
+            <div><span>${fmt(t.visitors)}</span>Visitors</div>
+            <div><span>${fmt(t.views)}</span>Page views</div>
+            <div><span>${fmt(t.reportsOpened)}</span>Reports opened</div>
+            <div><span>${fmt(t.formsSent)}</span>Forms sent</div>
+        </div>
+        <div class="ov-actions"><button type="button" class="ov-link" onclick="navigateTo('section-analytics')">Open Analytics →</button></div>`;
+
+    const attnHtml = !entries ? failed('reports') : (attention.length === 0
+        ? '<p class="ov-empty ov-empty--good">Every report has a category, product name and report link.</p>'
+        : `<ul class="ov-list">${attention.slice(0, 4).map(e => `
+            <li>
+                <div class="ov-li-main"><strong>${escapeHtml(e.title)}</strong></div>
+                <div class="ov-li-meta">${entryProblems(e).join(' · ')}</div>
+            </li>`).join('')}</ul>
+           <div class="ov-actions"><button type="button" class="ov-link" onclick="showReportsNeedingAttention()">Show all ${attention.length} →</button></div>`);
+
+    // Unsaved "+ New …" drafts (see Drafts below) — easy to forget otherwise.
+    const draftLinks = [['report', 'report', 'section-reports'], ['update', 'product update', 'section-updates']]
+        .filter(([kind]) => { try { return !!localStorage.getItem(DRAFTS[kind].key); } catch { return false; } })
+        .map(([, label, section]) => `<button type="button" class="ov-link" onclick="navigateTo('${section}')">Continue your unsaved ${label} →</button>`);
+    const draftBanner = draftLinks.length
+        ? `<div class="draft-note" style="margin-bottom:1rem;"><span>You have an unsaved draft.</span><span class="ov-actions" style="margin:0;">${draftLinks.join('')}</span></div>`
+        : '';
+
+    body.innerHTML = `
+        ${draftBanner}
+        <div class="ov-chips">
+            ${chip(pendingReqs.length,   pendingReqs.length   === 1 ? 'request to review'      : 'requests to review',     "navigateTo('section-requests')", true)}
+            ${chip(pendingIssues.length, pendingIssues.length === 1 ? 'known issue to review'  : 'known issues to review', "navigateTo('section-issues')", true)}
+            ${chip(onSite.length,        onSite.length        === 1 ? 'visitor on site today'  : 'visitors on site today', "navigateTo('section-accesslog')")}
+            ${chip(attention.length,     attention.length     === 1 ? 'report needs details'   : 'reports need details',   'showReportsNeedingAttention()', true)}
+        </div>
+        <div class="ov-grid">
+            <div class="an-card ov-card--wide"><h3>Waiting for you</h3><p class="an-card-sub">Requests and suggested known issues to approve</p>${waiting}</div>
+            <div class="an-card"><h3>Booked in the lab</h3><p class="an-card-sub">Approved bench tests and PoCs, on now or coming up</p>${bookedHtml}</div>
+            <div class="an-card"><h3>In the lab today</h3><p class="an-card-sub">Visitors who signed in at the door</p>${visitsHtml}</div>
+            <div class="an-card"><h3>Last 7 days on the dashboard</h3><p class="an-card-sub">Anonymous usage</p>${weekHtml}</div>
+            <div class="an-card"><h3>Reports needing details</h3><p class="an-card-sub">Missing category, product name or report link</p>${attnHtml}</div>
+        </div>`;
+}
+
+// ── Manufacturer / category suggestions ───────────────────────────────────
+// The text boxes suggest names already in use, and on leaving the box a name
+// that only differs in capitals is swapped for the existing spelling — so
+// "crestron" doesn't become a second Crestron in the dashboard filters.
+function refreshSuggestions() {
+    const fill = (id, values) => {
+        const dl = document.getElementById(id);
+        if (!dl) return;
+        const seen = new Map();
+        values.filter(Boolean).map(v => String(v).trim()).filter(Boolean)
+            .forEach(v => { if (!seen.has(v.toLowerCase())) seen.set(v.toLowerCase(), v); });
+        dl.innerHTML = '';
+        [...seen.values()].sort((a, b) => a.localeCompare(b, 'en-GB')).forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v;
+            dl.appendChild(opt);
+        });
+    };
+    // A report can name two manufacturers ("Crestron, Neat"); suggest each.
+    const split = s => String(s || '').split(',');
+    fill('dl-manufacturers', [...currentEntries.flatMap(e => split(e.manufacturer)), ...currentUpdates.flatMap(u => split(u.manufacturer))]);
+    fill('dl-categories',    currentEntries.map(e => e.productCategory));
+}
+
+document.addEventListener('focusout', (e) => {
+    const input = e.target;
+    if (!(input instanceof HTMLInputElement) || !input.list) return;
+    const options = [...input.list.options].map(o => o.value);
+    // Match each comma-separated part on its own, keeping the user's order.
+    const fixed = input.value.split(',').map(part => {
+        const p = part.trim();
+        return options.find(o => o.toLowerCase() === p.toLowerCase()) || p;
+    }).filter(Boolean).join(', ');
+    if (fixed && fixed !== input.value.trim()) input.value = fixed;
+});
+
+// ── Drafts ────────────────────────────────────────────────────────────────
+// The two "+ New …" forms save what's typed as you go, so a reload, closed
+// tab or expired login doesn't lose a half-written report. An inline edit
+// that hits an expired login is kept too and reopened after logging back in.
+const DRAFTS = {
+    report: { form: 'entry-form',  key: 'poc-admin-draft-report', skip: ['entry-request-link'] },
+    update: { form: 'update-form', key: 'poc-admin-draft-update', skip: [] },
+};
+
+function saveDraft(kind) {
+    const d = DRAFTS[kind];
+    const values = {};
+    let meaningful = false;
+    document.querySelectorAll(`#${d.form} input[id], #${d.form} select[id], #${d.form} textarea[id]`).forEach(el => {
+        if (d.skip.includes(el.id)) return;
+        values[el.id] = el.value;
+        if (el.value && el.type !== 'date' && el.tagName !== 'SELECT') meaningful = true;
+    });
+    try {
+        if (meaningful) localStorage.setItem(d.key, JSON.stringify({ savedAt: new Date().toISOString(), values }));
+        else localStorage.removeItem(d.key);
+    } catch { /* storage full or blocked — drafts are a nicety */ }
+}
+
+function clearDraft(kind) {
+    try { localStorage.removeItem(DRAFTS[kind].key); } catch { }
+    document.getElementById(`${kind}-draft-note`)?.remove();
+}
+
+function restoreDrafts() {
+    Object.keys(DRAFTS).forEach(kind => {
+        const d = DRAFTS[kind];
+        let saved = null;
+        try { saved = JSON.parse(localStorage.getItem(d.key) || 'null'); } catch { }
+        if (!saved || !saved.values) return;
+        Object.entries(saved.values).forEach(([id, v]) => { const el = document.getElementById(id); if (el) el.value = v; });
+        if (document.getElementById(`${kind}-add-panel`).classList.contains('hidden')) toggleAddPanel(kind, true);
+        if (!document.getElementById(`${kind}-draft-note`)) {
+            const when = new Date(saved.savedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            const note = document.createElement('div');
+            note.id = `${kind}-draft-note`;
+            note.className = 'draft-note';
+            note.innerHTML = `<span>Restored your unsaved draft from ${when}.</span>`;
+            const discard = document.createElement('button');
+            discard.type = 'button';
+            discard.textContent = 'Discard draft';
+            discard.addEventListener('click', () => {
+                document.getElementById(d.form).reset();
+                if (kind === 'report') document.getElementById('date').value = new Date().toISOString().split('T')[0];
+                if (kind === 'update') document.getElementById('update-meetingDate').value = new Date().toISOString().split('T')[0];
+                clearDraft(kind);
+            });
+            note.appendChild(discard);
+            document.getElementById(d.form).prepend(note);
+        }
+    });
+}
+
+Object.keys(DRAFTS).forEach(kind => {
+    const form = document.getElementById(DRAFTS[kind].form);
+    if (form) { form.addEventListener('input', () => saveDraft(kind)); form.addEventListener('change', () => saveDraft(kind)); }
+});
+
+const PENDING_EDIT_KEY = 'poc-admin-pending-edit';
+
+function stashPendingEdit(kind, id) {
+    const formId = kind === 'report' ? `edit-form-${id}` : `edit-update-form-${id}`;
+    const values = {};
+    document.querySelectorAll(`#${formId} input[id], #${formId} select[id], #${formId} textarea[id]`).forEach(el => { values[el.id] = el.value; });
+    try { localStorage.setItem(PENDING_EDIT_KEY, JSON.stringify({ kind, id, values })); } catch { }
+}
+
+function restorePendingEdit(kind) {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(PENDING_EDIT_KEY) || 'null'); } catch { }
+    if (!saved || saved.kind !== kind) return;
+    try { localStorage.removeItem(PENDING_EDIT_KEY); } catch { }
+    const exists = kind === 'report' ? currentEntries.some(e => e.id === saved.id) : currentUpdates.some(u => u.id === saved.id);
+    if (!exists) return;
+    if (kind === 'report') { navigateTo('section-reports'); clearEntryFilters(); openEditForm(saved.id); }
+    else { navigateTo('section-updates'); openUpdateEditForm(saved.id); }
+    Object.entries(saved.values).forEach(([id, v]) => { const el = document.getElementById(id); if (el) el.value = v; });
+    const status = document.getElementById(kind === 'report' ? `edit-status-${saved.id}` : `edit-update-status-${saved.id}`);
+    if (status) { status.textContent = 'Your login had expired — your changes were kept. Click Save Changes.'; status.style.color = '#92400e'; }
+    document.getElementById(kind === 'report' ? `entry-row-${saved.id}` : `update-row-${saved.id}`)?.scrollIntoView({ block: 'center' });
+}
+
 // ── Section navigation ────────────────────────────────────────────────────
-const SECTIONS = ['section-reports', 'section-updates', 'section-requests', 'section-accesslog', 'section-analytics', 'section-subscribers', 'section-issues'];
+const SECTIONS = ['section-overview', 'section-reports', 'section-updates', 'section-requests', 'section-accesslog', 'section-analytics', 'section-subscribers', 'section-issues'];
 
 function navigateTo(id) {
     SECTIONS.forEach(sid => document.getElementById(sid).classList.add('hidden'));
@@ -1375,7 +1744,14 @@ function navigateTo(id) {
     const navEl = document.getElementById('nav-' + id.replace('section-', ''));
     if (navEl) navEl.classList.add('active');
 
+    document.querySelectorAll('.mnav-item[data-section]').forEach(el => {
+        const on = el.dataset.section === id;
+        el.classList.toggle('active', on);
+        if (on) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+
     localStorage.setItem('poc-admin-active-section', id);
+    if (id === 'section-overview') loadOverview();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1399,10 +1775,43 @@ function toggleAddPanel(kind, open) {
 }
 
 function updateBadge(id, count, show) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (show && count > 0) { el.textContent = count; el.style.display = ''; }
-    else { el.style.display = 'none'; }
+    // Sidebar badges have a twin in the mobile tab strip ("m-" + id).
+    [id, 'm-' + id].forEach(bid => {
+        const el = document.getElementById(bid);
+        if (!el) return;
+        if (show && count > 0) { el.textContent = count; el.style.display = ''; }
+        else { el.style.display = 'none'; }
+    });
+}
+
+// Phones and tablets hide the sidebar, so copy its tabs (with their badges)
+// into a scrolling strip at the top of the page, plus Log out.
+function buildMobileNav() {
+    const strip = document.getElementById('admin-mobile-nav');
+    if (!strip || strip.childElementCount) return;
+    document.querySelectorAll('#admin-sidebar .sidebar-item').forEach(item => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'mnav-item';
+        btn.dataset.section = item.id.replace('nav-', 'section-');
+        const label = document.createElement('span');
+        label.textContent = (item.querySelector('span') || item).textContent.trim();
+        btn.appendChild(label);
+        const badge = item.querySelector('.sb-badge');
+        if (badge) {
+            const twin = badge.cloneNode(true);
+            twin.id = 'm-' + badge.id;
+            btn.appendChild(twin);
+        }
+        btn.addEventListener('click', () => navigateTo(btn.dataset.section));
+        strip.appendChild(btn);
+    });
+    const out = document.createElement('button');
+    out.type = 'button';
+    out.className = 'mnav-item mnav-item--logout';
+    out.textContent = 'Log out';
+    out.addEventListener('click', logout);
+    strip.appendChild(out);
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
