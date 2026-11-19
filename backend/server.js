@@ -1196,6 +1196,21 @@ app.put('/api/requests/:id/reopen', requireAuth, (req, res) => {
     res.json(r);
 });
 
+// Keep a booking off the public "What's On" panel (e.g. a long soak test)
+// without changing anything else about it. Settable at any stage, so a
+// request can be hidden before it's approved.
+app.put('/api/requests/:id/whats-on', requireAuth, (req, res) => {
+    const requests = readRequests();
+    const r = requests.find(x => x.id === req.params.id);
+    if (!r) return res.status(404).json({ error: 'Not found' });
+    const show = !!(req.body && req.body.show);
+    if (show) delete r.hideFromWhatsOn;
+    else r.hideFromWhatsOn = true;
+    writeRequests(requests);
+    console.log(`[admin] request ${show ? 'shown on' : 'hidden from'} What's On: "${r.jobName}"`);
+    res.json(r);
+});
+
 // ── Lab access log (admin read) ───────────────────────────────────────────
 app.get('/api/admin/access-log', requireAuth, (req, res) => {
     const { from, to } = req.query;
@@ -1235,7 +1250,7 @@ app.get('/api/whats-on', (req, res) => {
     const today   = londonDate();
     const horizon = londonDate(new Date(Date.now() + WHATS_ON_DAYS * 86400000));
     res.json(readRequests()
-        .filter(r => r.status === 'approved' && r.dateStart)
+        .filter(r => r.status === 'approved' && r.dateStart && !r.hideFromWhatsOn)
         .filter(r => (r.dateEnd || r.dateStart) >= today && r.dateStart <= horizon)
         .sort((a, b) => a.dateStart.localeCompare(b.dateStart))
         .slice(0, WHATS_ON_MAX)

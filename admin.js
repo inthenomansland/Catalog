@@ -972,6 +972,14 @@ function buildRequestRow(r, isPending) {
             ? `<button class="entry-row-edit" onclick="reopenRequest('${r.id}', this)">Reopen</button>`
             : '';
 
+    // The public "What's On" panel lists approved bookings; this keeps one off
+    // it (a long soak test, say). Not offered once a request is completed.
+    const hidden      = !!r.hideFromWhatsOn;
+    const whatsOnTag  = hidden && r.status !== 'completed'
+        ? `<span class="entry-row-meta" style="color:#6b7280;font-weight:600;">Hidden from What's On</span>` : '';
+    const whatsOnBtn  = r.status === 'completed' ? ''
+        : `<button class="entry-row-edit" onclick="setWhatsOn('${r.id}', ${hidden}, this)" title="${hidden ? 'List this booking on the dashboard again' : 'Keep this booking off the public What\'s On panel'}">${hidden ? "Show on What's On" : "Hide from What's On"}</button>`;
+
     wrap.innerHTML = `
         <div class="entry-row">
             <div class="entry-row-info">
@@ -979,9 +987,11 @@ function buildRequestRow(r, isPending) {
                 <span class="entry-row-meta">${escapeHtml(r.submitterName)} · Submitted ${r.submittedDate || '—'}</span>
                 ${dateRange}
                 ${doneMeta}
+                ${whatsOnTag}
             </div>
             <div class="entry-row-actions">
                 <button class="entry-row-edit" onclick="toggleRequestDetail('${r.id}')">Details</button>
+                ${whatsOnBtn}
                 ${isPending ? `<input type="text" id="request-accesscode-${r.id}" placeholder="Access code (optional)" style="width:150px;padding:0.3rem 0.55rem;font-size:0.78rem;border:1px solid #d1d5db;border-radius:5px;">
                 <button class="entry-row-approve" onclick="approveRequest('${r.id}', this)">Approve</button>
                 <button class="entry-row-delete"  onclick="deleteRequest('${r.id}', this)">Decline</button>` : `${statusActions}
@@ -1040,6 +1050,24 @@ async function setRequestStatus(id, action, btn, failMsg) {
         if (res.status === 401) { logout(); return; }
         if (res.ok) { loadRequests(); loadRequestOptions(); }
         else { alert(failMsg); btn.disabled = false; }
+    } catch {
+        alert('Network error.');
+        btn.disabled = false;
+    }
+}
+
+// show = true puts the booking back on the public What's On panel.
+async function setWhatsOn(id, show, btn) {
+    btn.disabled = true;
+    try {
+        const res = await fetch(`/api/requests/${encodeURIComponent(id)}/whats-on`, {
+            method:  'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+            body:    JSON.stringify({ show }),
+        });
+        if (res.status === 401) { logout(); return; }
+        if (res.ok) { loadRequests(); loadOverview(); }
+        else { alert(await adminError(res, "Couldn't change What's On.")); btn.disabled = false; }
     } catch {
         alert('Network error.');
         btn.disabled = false;
@@ -1553,7 +1581,7 @@ async function loadOverview() {
             const now = r.dateStart <= today;
             return `
                 <li>
-                    <div class="ov-li-main">${now ? '<span class="ov-now">On now</span>' : ''}${typeTag(r.type)}<strong>${escapeHtml(r.jobName || 'Untitled')}</strong></div>
+                    <div class="ov-li-main">${now ? '<span class="ov-now">On now</span>' : ''}${typeTag(r.type)}<strong>${escapeHtml(r.jobName || 'Untitled')}</strong>${r.hideFromWhatsOn ? '<span class="ov-type" style="background:#f3f4f6;color:#6b7280;">Hidden from What\'s On</span>' : ''}</div>
                     <div class="ov-li-meta">${range(r.dateStart, r.dateEnd)} · ${escapeHtml(r.submitterName || '—')}</div>
                 </li>`;
         }).join('')}</ul>`);
