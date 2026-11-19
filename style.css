@@ -1285,3 +1285,88 @@ main {
 }
 input[type="checkbox"].field-error { outline: 2px solid #dc2626; outline-offset: 2px; }
 .modal-btn-submit:disabled { opacity: 0.6; cursor: wait; }
+
+/* ── Clickable cards: short summary, click for the full report ── */
+.card--clickable { cursor: pointer; }
+.card--clickable:hover { border-color: #c7e9ae; }
+.card-title-btn {
+    display: block; width: 100%; padding: 0; margin: 0; border: 0; background: none;
+    font: inherit; font-size: 1.02rem; font-weight: 700; line-height: 1.4;
+    color: #0f1117; text-align: left; cursor: pointer;
+}
+.card-title-btn:hover { text-decoration: underline; text-decoration-color: var(--brand-green); text-underline-offset: 3px; }
+.card-title-btn:focus-visible { outline: 2px solid var(--brand-green); outline-offset: 3px; border-radius: 3px; }
+.whats-new-section .card-title-btn { color: #f1f5f9; }
+.card-summary {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.card-more { font-size: 0.8rem; font-weight: 600; color: #4a9c1f; margin-top: -0.35rem; }
+.whats-new-section .card-more { color: var(--brand-green); }
+
+/* ── Report detail view ── */
+.report-detail { max-width: 680px; }
+.report-detail-body { display: flex; flex-direction: column; gap: 1.1rem; overflow-y: auto; }
+.report-detail-meta {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1.25rem; margin: 0;
+    padding: 0.9rem 1rem; background: #f9fafb; border: 1px solid #eef0f3; border-radius: 8px;
+}
+.report-detail-meta dt { font-size: 0.72rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; }
+.report-detail-meta dd { margin: 0.15rem 0 0; font-size: 0.88rem; color: #1f2937; }
+.report-detail-summary { font-size: 0.92rem; line-height: 1.7; color: #374151; white-space: pre-line; }
+.report-detail-actions {
+    display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;
+    padding: 1rem 1.5rem; border-top: 1px solid #f0f2f5; background: #fafbfc;
+}
+.report-detail-actions .btn { flex: 0 0 auto; padding: 0.55rem 1.1rem; }
+.report-detail-actions .report-copy-link { cursor: pointer; font: inherit; font-size: 0.85rem; font-weight: 600; }
+.report-detail-actions .card-actions { display: flex; gap: 0.6rem; margin: 0 0 0 auto; padding: 0; border: 0; }
+
+/* ── What's On in the lab ── */
+.whats-on-section {
+    background: white; border: 1px solid #e1e4e8; border-left: 4px solid var(--brand-green);
+    border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1.75rem;
+}
+.whats-on-header { margin-bottom: 0.9rem; }
+.whats-on-title { font-size: 1.1rem; font-weight: 700; color: #0f1117; margin: 0; }
+.whats-on-sub { font-size: 0.83rem; color: #6b7280; margin: 0.2rem 0 0; }
+.whats-on-list {
+    list-style: none; margin: 0; padding: 0;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.75rem;
+}
+.whats-on-item {
+    display: flex; gap: 0.85rem; align-items: center;
+    padding: 0.7rem 0.85rem; border: 1px solid #eef0f3; border-radius: 9px; background: #fafbfc;
+}
+.whats-on-item--now { border-color: #c7e9ae; background: #f4fbee; }
+.whats-on-date {
+    flex-shrink: 0; width: 48px; text-align: center; padding: 0.3rem 0;
+    border-radius: 7px; background: var(--brand-black); color: white; line-height: 1.1;
+}
+.whats-on-day { display: block; font-size: 1.15rem; font-weight: 800; }
+.whats-on-month { display: block; font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--brand-green); }
+.whats-on-info { min-width: 0; }
+.whats-on-name { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; font-size: 0.88rem; color: #1f2937; }
+.whats-on-when { font-size: 0.78rem; color: #6b7280; margin-top: 0.2rem; }
+.whats-on-now { font-size: 0.66rem; font-weight: 700; padding: 1px 7px; border-radius: 4px; background: var(--brand-green); color: var(--brand-black); }
+.whats-on-type { font-size: 0.66rem; font-weight: 700; padding: 1px 7px; border-radius: 4px; }
+.whats-on-type--bench { background: #dbeafe; color: #1d4ed8; }
+.whats-on-type--poc   { background: #ede9fe; color: #6d28d9; }
+
+@media (max-width: 640px) {
+    .whats-on-section { padding: 1rem 1.1rem; }
+    .report-detail-meta { grid-template-columns: 1fr; }
+    .report-detail-actions { padding: 0.9rem 1.1rem; }
+    .report-detail-actions .card-actions { margin-left: 0; width: 100%; }
+    .report-detail-actions .btn { flex: 1 1 auto; }
+}
+
+/* Phones: keep cards short — product and category are in the detail view */
+@media (max-width: 640px) {
+    .card--clickable .card-meta .meta-item:nth-child(2),
+    .card--clickable .card-meta .meta-item:nth-child(3) { display: none; }
+    .card--clickable .card-summary { -webkit-line-clamp: 3; }
+}
+.whats-on-tbc { font-weight: 500; color: #6b7280; font-style: italic; }

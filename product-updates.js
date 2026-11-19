@@ -21,14 +21,10 @@ async function loadUpdates() {
 // ── Filters ───────────────────────────────────────────────────────────────
 // Same behaviour as the reports search: one box matching titles, products,
 // manufacturers, summaries and tags, plus a manufacturer dropdown.
+// A deck covering two manufacturers ("Crestron, Neat") is listed under each.
 function populateFilters() {
-    const manufacturers = [...new Set(allUpdates.map(u => u.manufacturer).filter(Boolean))].sort();
-    const mfgSelect = document.getElementById('filter-manufacturer');
-    manufacturers.forEach(m => {
-        const opt = document.createElement('option');
-        opt.value = m; opt.textContent = m;
-        mfgSelect.appendChild(opt);
-    });
+    fillSelect(document.getElementById('filter-manufacturer'),
+        filterOptions(allUpdates.map(u => u.manufacturer), splitManufacturers, mfrSlug));
 }
 
 function getFilters() {
@@ -40,7 +36,7 @@ function getFilters() {
 
 function filterUpdates(filters) {
     return allUpdates.filter(u => {
-        if (filters.manufacturer && u.manufacturer !== filters.manufacturer) return false;
+        if (filters.manufacturer && !valueHasKey(u.manufacturer, filters.manufacturer, splitManufacturers, mfrSlug)) return false;
         if (filters.search) {
             const haystack = [
                 u.title, u.products, u.manufacturer, u.summary, (u.tags || []).join(' ')
@@ -54,18 +50,14 @@ function filterUpdates(filters) {
 // ── Card ──────────────────────────────────────────────────────────────────
 // Same card as a report (see createCard in app.js), with the deck link in
 // place of the report buttons. Values come from the admin form, so they are
-// escaped before going into the markup.
-function escapeHtml(str) {
-    if (str === null || str === undefined) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
+// escaped (escapeHtml / safeUrl in cards.js) before going into the markup.
 function createUpdateCard(u) {
     const card = document.createElement('div');
     card.className = 'card card--update';
 
-    const deckBtn = u.deckLink
-        ? `<a href="${escapeHtml(u.deckLink)}" target="_blank" rel="noopener" class="btn btn-primary">View Deck</a>` : '';
+    const deck    = safeUrl(u.deckLink);
+    const deckBtn = deck
+        ? `<a href="${deck}" target="_blank" rel="noopener" class="btn btn-primary">View Deck</a>` : '';
 
     card.innerHTML = `
         <div class="card-topline">

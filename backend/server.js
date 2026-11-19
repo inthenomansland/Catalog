@@ -1213,6 +1213,40 @@ app.get('/api/visit/bookings', (req, res) => {
     })));
 });
 
+// ── What's On (public) ────────────────────────────────────────────────────
+// Approved bench tests and PoCs that are on now or start in the next four
+// weeks, for the dashboard's "What's On in the lab" panel. Job names can carry
+// client details, so they never go out here: the panel shows the kit being
+// tested (the request's "Kit / Equipment Required" field), its type and dates.
+const WHATS_ON_DAYS = 28;
+const WHATS_ON_MAX  = 8;
+const WHATS_ON_KIT_CHARS = 60;
+
+// First line of the kit list, cut at a word boundary — a summary, not the list.
+function whatsOnKit(kit) {
+    const line = String(kit || '').split(/\r?\n/).map(s => s.trim()).find(Boolean) || '';
+    const flat = line.replace(/\s+/g, ' ').replace(/^[-•*]\s*/, '');
+    if (flat.length <= WHATS_ON_KIT_CHARS) return flat;
+    const cut = flat.slice(0, WHATS_ON_KIT_CHARS);
+    return cut.slice(0, cut.lastIndexOf(' ') > 30 ? cut.lastIndexOf(' ') : cut.length).replace(/[,;:\s]+$/, '') + '…';
+}
+
+app.get('/api/whats-on', (req, res) => {
+    const today   = londonDate();
+    const horizon = londonDate(new Date(Date.now() + WHATS_ON_DAYS * 86400000));
+    res.json(readRequests()
+        .filter(r => r.status === 'approved' && r.dateStart)
+        .filter(r => (r.dateEnd || r.dateStart) >= today && r.dateStart <= horizon)
+        .sort((a, b) => a.dateStart.localeCompare(b.dateStart))
+        .slice(0, WHATS_ON_MAX)
+        .map(r => ({
+            kit:       whatsOnKit(r.kit),          // may be '' — the panel then shows the type alone
+            type:      r.type === 'bench' ? 'bench' : 'poc',
+            dateStart: r.dateStart,
+            dateEnd:   r.dateEnd && r.dateEnd >= r.dateStart ? r.dateEnd : r.dateStart,
+        })));
+});
+
 app.post('/api/visit/sign-in', visitLimiter, (req, res) => {
     if (req.body._hp) return res.status(200).json({ message: 'ok' });
     const clean = v => String(v || '').trim().slice(0, 200);

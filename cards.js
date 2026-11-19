@@ -59,9 +59,9 @@ const MAX_LOGO_TILES = 3;
 function mfrLogoTile(name, compact) {
     const hue = mfrHue(name);
     return `
-        <div class="card-logo${compact ? ' card-logo--sm' : ''}" title="${name}" style="--mono-bg:hsl(${hue},58%,94%);--mono-fg:hsl(${hue},42%,32%);">
-            <span class="card-logo-mono">${mfrMonogram(name)}</span>
-            <img src="logos/${mfrSlug(name)}.png" alt="${name} logo" loading="lazy" onerror="this.style.display='none'">
+        <div class="card-logo${compact ? ' card-logo--sm' : ''}" title="${escapeHtml(name)}" style="--mono-bg:hsl(${hue},58%,94%);--mono-fg:hsl(${hue},42%,32%);">
+            <span class="card-logo-mono">${escapeHtml(mfrMonogram(name))}</span>
+            <img src="logos/${mfrSlug(name)}.png" alt="${escapeHtml(name)} logo" loading="lazy" onerror="this.style.display='none'">
         </div>`;
 }
 
@@ -75,7 +75,7 @@ function mfrLogo(rawName) {
     const overflow = names.length - shown.length;
     const tiles    = shown.map(n => mfrLogoTile(n, compact)).join('');
     const more     = overflow > 0
-        ? `<div class="card-logo card-logo--sm card-logo--more" title="${names.slice(MAX_LOGO_TILES).join(', ')}">+${overflow}</div>`
+        ? `<div class="card-logo card-logo--sm card-logo--more" title="${escapeHtml(names.slice(MAX_LOGO_TILES).join(', '))}">+${overflow}</div>`
         : '';
 
     return `<div class="card-logo-group">${tiles}${more}</div>`;
@@ -146,5 +146,69 @@ function showLoadError(rootId, what, retry) {
     root.querySelector('.load-retry').addEventListener('click', () => {
         root.innerHTML = '<div class="load-state" role="status"><span class="load-spinner" aria-hidden="true"></span>Loading…</div>';
         retry();
+    });
+}
+
+// ── Safe output ───────────────────────────────────────────────────────────
+// Everything on a card comes from the admin form (or, for known issues, a
+// public suggestion), so it is escaped before going into the page — a title
+// with "<" or "&" in it then shows as typed instead of breaking the card.
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Only web links become buttons; anything else (a typo, "javascript:…") is dropped.
+function safeUrl(url) {
+    const u = String(url || '').trim();
+    return /^https?:\/\//i.test(u) ? escapeHtml(u) : '';
+}
+
+// ── Filter options from combined values ───────────────────────────────────
+// Reports often name several categories ("Video, Conferencing") or
+// manufacturers ("Crestron, Neat"). The dropdowns list each one on its own,
+// and picking one matches every report that includes it — so "Video" finds
+// "Video, Conferencing" too. Spellings that differ only in capitals (or, for
+// manufacturers, are aliases like Q-SYS/QSC) are merged under the most used one.
+function splitCategories(value) {
+    return String(value || '').split(/\s*[,/]\s*/).map(s => s.trim()).filter(Boolean);
+}
+
+const categoryKey = s => s.toLowerCase().replace(/\s+/g, ' ');
+
+function filterOptions(values, split, keyOf) {
+    const byKey = new Map();   // key → Map(label → count)
+    values.forEach(v => split(v).forEach(part => {
+        const key = keyOf(part);
+        if (!key) return;
+        if (!byKey.has(key)) byKey.set(key, new Map());
+        const labels = byKey.get(key);
+        labels.set(part, (labels.get(part) || 0) + 1);
+    }));
+    return [...byKey.entries()].map(([key, labels]) => {
+        // Most used spelling; on a tie prefer one starting with a capital.
+        const label = [...labels.entries()].sort((a, b) =>
+            b[1] - a[1] || (/^[A-Z]/.test(b[0]) - /^[A-Z]/.test(a[0])) || a[0].localeCompare(b[0]))[0][0];
+        return { key, label };
+    }).sort((a, b) => a.label.localeCompare(b.label, 'en-GB', { sensitivity: 'base' }));
+}
+
+function valueHasKey(value, key, split, keyOf) {
+    return split(value).some(part => keyOf(part) === key);
+}
+
+// Categories are broader: "Video" also matches "Video Conferencing" and
+// "Network Video" (the word on its own, so "Audio" doesn't match "Audiovisual").
+function categoryMatches(value, key) {
+    const word = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re   = new RegExp(`(^|[^a-z0-9])${word}($|[^a-z0-9])`, 'i');
+    return splitCategories(value).some(part => re.test(part));
+}
+
+function fillSelect(select, options) {
+    options.forEach(({ key, label }) => {
+        const opt = document.createElement('option');
+        opt.value = key; opt.textContent = label;
+        select.appendChild(opt);
     });
 }

@@ -32,7 +32,8 @@
         // Report / deck links on the cards.
         const link = e.target.closest('.card-actions a');
         if (link) {
-            const title = (link.closest('.card')?.querySelector('.card-title')?.textContent || '').trim();
+            const holder = link.closest('[data-track-title]');
+            const title  = (holder ? holder.dataset.trackTitle : (link.closest('.card')?.querySelector('.card-title')?.textContent || '')).trim();
             const kind  = link.textContent.trim();
             if (kind === 'View Deck') track('open_deck', title);
             else track('open_report', title, kind);   // "Full Report" or "Front Page"
@@ -69,6 +70,6 @@
     Object.keys(FILTER_NAMES).forEach(id => {
         const sel = document.getElementById(id);
         if (!sel) return;
-        sel.addEventListener('change', () => { if (sel.value) track('filter', `${FILTER_NAMES[id]}: ${sel.value}`); });
+        sel.addEventListener('change', () => { if (sel.value) track('filter', `${FILTER_NAMES[id]}: ${sel.selectedOptions[0].textContent}`); });
     });
 })();

@@ -1,5 +1,6 @@
 let allEntries = [];
 let allGotchas = [];
+let whatsOn    = [];
 const TYPE_ORDER = ['Kit', 'Program', 'Concept'];
 
 // ── Data loading ──────────────────────────────────────────────────────────
@@ -22,26 +23,32 @@ async function loadData() {
     allEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
     populateFilters();
     render(allEntries, false);
+    openReportFromLink();
+    loadWhatsOn();
+}
+
+// Approved bench tests and PoCs, on now or coming up. Loaded after the
+// catalogue so a slow or failed request never holds the reports back.
+async function loadWhatsOn() {
+    try {
+        const res = await fetch('/api/whats-on');
+        whatsOn = res.ok ? await res.json() : [];
+    } catch {
+        whatsOn = [];
+    }
+    if (whatsOn.length) applyFilters();
 }
 
 // ── Filters ───────────────────────────────────────────────────────────────
+// See filterOptions in cards.js: "Video, Conferencing" counts as both Video
+// and Conferencing, and "Crestron, Neat" as both Crestron and Neat.
+const mfrKey = s => mfrSlug(s);
+
 function populateFilters() {
-    const manufacturers = [...new Set(allEntries.map(e => e.manufacturer).filter(Boolean))].sort();
-    const categories    = [...new Set(allEntries.map(e => e.productCategory).filter(Boolean))].sort();
-
-    const mfgSelect = document.getElementById('filter-manufacturer');
-    manufacturers.forEach(m => {
-        const opt = document.createElement('option');
-        opt.value = m; opt.textContent = m;
-        mfgSelect.appendChild(opt);
-    });
-
-    const catSelect = document.getElementById('filter-category');
-    categories.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c; opt.textContent = c;
-        catSelect.appendChild(opt);
-    });
+    fillSelect(document.getElementById('filter-manufacturer'),
+        filterOptions(allEntries.map(e => e.manufacturer), splitManufacturers, mfrKey));
+    fillSelect(document.getElementById('filter-category'),
+        filterOptions(allEntries.map(e => e.productCategory), splitCategories, categoryKey));
 }
 
 function getFilters() {
@@ -55,9 +62,9 @@ function getFilters() {
 
 function filterEntries(filters) {
     return allEntries.filter(entry => {
-        if (filters.manufacturer && entry.manufacturer !== filters.manufacturer) return false;
-        if (filters.category     && entry.productCategory !== filters.category)  return false;
-        if (filters.type         && entry.testType !== filters.type)              return false;
+        if (filters.manufacturer && !valueHasKey(entry.manufacturer, filters.manufacturer, splitManufacturers, mfrKey)) return false;
+        if (filters.category     && !categoryMatches(entry.productCategory, filters.category)) return false;
+        if (filters.type         && entry.testType !== filters.type) return false;
         if (filters.search) {
             const haystack = [
                 entry.title, entry.productName, entry.manufacturer,
@@ -76,31 +83,183 @@ function badgeClass(type) {
 
 // ── Card ──────────────────────────────────────────────────────────────────
 // Logo, date and recency helpers live in cards.js, shared with Product Updates.
+// The summary is cut to a few lines here; clicking the card (or its title)
+// opens the full report detail — see openReportDetail below.
+function reportButtons(entry) {
+    const front  = safeUrl(entry.frontPageDoc);
+    const report = safeUrl(entry.fullReport);
+    return (front  ? `<a href="${front}"  target="_blank" rel="noopener" class="btn btn-secondary">Front Page</a>`  : '') +
+           (report ? `<a href="${report}" target="_blank" rel="noopener" class="btn btn-primary">Full Report</a>` : '');
+}
+
 function createCard(entry) {
     const card = document.createElement('div');
-    card.className = `card card--${(entry.testType || 'kit').toLowerCase()}`;
-
-    const frontBtn  = entry.frontPageDoc
-        ? `<a href="${entry.frontPageDoc}" target="_blank" rel="noopener" class="btn btn-secondary">Front Page</a>` : '';
-    const reportBtn = entry.fullReport
-        ? `<a href="${entry.fullReport}"   target="_blank" rel="noopener" class="btn btn-primary">Full Report</a>`  : '';
+    card.className = `card card--${escapeHtml((entry.testType || 'kit').toLowerCase())} card--clickable`;
+    card.dataset.trackTitle = entry.title || '';
 
     card.innerHTML = `
         <div class="card-topline">
             ${mfrLogo(entry.manufacturer)}
-            <span class="badge ${badgeClass(entry.testType)}">${entry.testType}</span>
+            <span class="badge ${badgeClass(entry.testType)}">${escapeHtml(entry.testType)}</span>
         </div>
-        <div class="card-title">${entry.title}</div>
+        <button type="button" class="card-title card-title-btn">${escapeHtml(entry.title)}</button>
         <div class="card-meta">
-            <span class="meta-item"><strong>Manufacturer</strong> ${entry.manufacturer || '—'}</span>
-            <span class="meta-item"><strong>Product</strong> ${entry.productName || '—'}</span>
-            <span class="meta-item"><strong>Category</strong> ${entry.productCategory || '—'}</span>
+            <span class="meta-item"><strong>Manufacturer</strong> ${escapeHtml(entry.manufacturer) || '—'}</span>
+            <span class="meta-item"><strong>Product</strong> ${escapeHtml(entry.productName) || '—'}</span>
+            <span class="meta-item"><strong>Category</strong> ${escapeHtml(entry.productCategory) || '—'}</span>
             <span class="meta-item"><strong>Date</strong> ${formatDate(entry.date)}</span>
         </div>
-        <div class="card-summary">${entry.summary || ''}</div>
-        <div class="card-actions">${frontBtn}${reportBtn}</div>
+        <div class="card-summary">${escapeHtml(entry.summary)}</div>
+        <span class="card-more" aria-hidden="true">More details →</span>
+        <div class="card-actions">${reportButtons(entry)}</div>
     `;
+
+    // Anywhere on the card opens the detail, except the report links themselves.
+    card.addEventListener('click', e => {
+        if (e.target.closest('a')) return;
+        openReportDetail(entry.id);
+    });
     return card;
+}
+
+// ── Report detail (and shareable link) ────────────────────────────────────
+// The full summary, every detail and the report links in one view. Opening it
+// puts #report=<id> in the address bar, so the link can be copied into Teams
+// and opens straight onto this report.
+function findEntry(id) { return allEntries.find(e => e.id === id); }
+
+function openReportDetail(id, fromLink) {
+    const entry = findEntry(id);
+    if (!entry) return;
+    closeReportDetail(true);
+
+    const tags = (entry.tags || []).filter(Boolean);
+    const overlay = document.createElement('div');
+    overlay.id = 'report-detail-overlay';
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+        <div class="modal report-detail" role="dialog" aria-modal="true" aria-labelledby="report-detail-title" data-track-title="${escapeHtml(entry.title)}">
+            <div class="modal-header">
+                <div>
+                    <h2 id="report-detail-title">${escapeHtml(entry.title)}</h2>
+                    <p>${escapeHtml(entry.manufacturer) || '—'} · ${escapeHtml(entry.testType) || '—'}</p>
+                </div>
+                <button type="button" class="modal-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body report-detail-body">
+                <div class="card-topline">
+                    ${mfrLogo(entry.manufacturer)}
+                    <span class="badge ${badgeClass(entry.testType)}">${escapeHtml(entry.testType)}</span>
+                </div>
+                <dl class="report-detail-meta">
+                    <div><dt>Manufacturer</dt><dd>${escapeHtml(entry.manufacturer) || '—'}</dd></div>
+                    <div><dt>Product</dt><dd>${escapeHtml(entry.productName) || '—'}</dd></div>
+                    <div><dt>Category</dt><dd>${escapeHtml(entry.productCategory) || '—'}</dd></div>
+                    <div><dt>Test date</dt><dd>${formatDate(entry.date)}</dd></div>
+                </dl>
+                <div class="report-detail-summary">${escapeHtml(entry.summary) || 'No summary yet.'}</div>
+                ${tags.length ? `<div class="card-tags">${tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+            </div>
+            <div class="report-detail-actions">
+                <button type="button" class="btn btn-secondary report-copy-link">Copy link</button>
+                <span class="card-actions">${reportButtons(entry)}</span>
+            </div>
+        </div>`;
+
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeReportDetail(); });
+    overlay.querySelector('.modal-close').addEventListener('click', () => closeReportDetail());
+    overlay.querySelector('.report-copy-link').addEventListener('click', e => copyReportLink(entry.id, e.currentTarget));
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+    overlay.querySelector('.modal-close').focus();
+
+    const hash = `#report=${encodeURIComponent(entry.id)}`;
+    if (location.hash !== hash) history.replaceState(null, '', hash);
+    if (!fromLink && window.track) track('action', 'Report details', 'clicked');
+}
+
+// quiet: just remove it (when another is about to open), leaving the address alone.
+function closeReportDetail(quiet) {
+    const overlay = document.getElementById('report-detail-overlay');
+    if (overlay) {
+        overlay.remove();
+        if (!document.querySelector('.modal-overlay:not(.hidden)')) document.body.style.overflow = '';
+    }
+    if (!quiet && location.hash.startsWith('#report=')) history.replaceState(null, '', location.pathname + location.search);
+}
+
+function reportLink(id) {
+    return `${location.origin}${location.pathname}#report=${encodeURIComponent(id)}`;
+}
+
+async function copyReportLink(id, btn) {
+    const link = reportLink(id);
+    let ok = false;
+    try { await navigator.clipboard.writeText(link); ok = true; } catch { /* clipboard blocked */ }
+    if (!ok) {
+        // Older browsers / blocked clipboard: show the link so it can be copied by hand.
+        window.prompt('Copy this link:', link);
+        return;
+    }
+    const original = btn.textContent;
+    btn.textContent = 'Link copied';
+    setTimeout(() => { btn.textContent = original; }, 1800);
+}
+
+// A shared link: #report=<id> opens that report once the catalogue has loaded.
+function openReportFromLink() {
+    const m = location.hash.match(/^#report=([^&]+)/);
+    if (!m) { closeReportDetail(true); return; }   // link removed (e.g. Back) — close the view
+    const id = decodeURIComponent(m[1]);
+    if (findEntry(id)) openReportDetail(id, true);
+    else closeReportDetail();   // removed or mistyped: close anything open and tidy the address
+}
+
+window.addEventListener('hashchange', openReportFromLink);
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('report-detail-overlay')) closeReportDetail();
+});
+
+// ── What's On section ─────────────────────────────────────────────────────
+// Approved bench tests and PoCs that are on now or coming up, so colleagues
+// know when there is something to come and see. Only the kit being tested,
+// the type and dates are public (see /api/whats-on) — never the job name
+// (which can name a client) or who booked it.
+function buildWhatsOnSection(items) {
+    const today = new Date().toLocaleDateString('en-CA');   // yyyy-mm-dd, local
+    const day   = d => new Date(d + 'T00:00:00');
+    const short = d => day(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    const section = document.createElement('section');
+    section.className = 'whats-on-section';
+    section.innerHTML = `
+        <div class="whats-on-header">
+            <h2 class="whats-on-title">What's On in the lab</h2>
+            <p class="whats-on-sub">Approved bench tests and PoCs — come along and see what's being tested.</p>
+        </div>
+        <ul class="whats-on-list">
+            ${items.map(i => {
+                const end   = i.dateEnd || i.dateStart;
+                const onNow = i.dateStart <= today && end >= today;
+                const when  = end !== i.dateStart ? `${short(i.dateStart)} – ${short(end)}` : short(i.dateStart);
+                const d     = day(i.dateStart);
+                return `
+                <li class="whats-on-item${onNow ? ' whats-on-item--now' : ''}">
+                    <div class="whats-on-date" aria-hidden="true">
+                        <span class="whats-on-day">${d.getDate()}</span>
+                        <span class="whats-on-month">${d.toLocaleDateString('en-GB', { month: 'short' })}</span>
+                    </div>
+                    <div class="whats-on-info">
+                        <div class="whats-on-name">
+                            ${onNow ? '<span class="whats-on-now">On now</span>' : ''}
+                            <span class="whats-on-type whats-on-type--${i.type === 'bench' ? 'bench' : 'poc'}">${i.type === 'bench' ? 'Bench Test' : 'PoC'}</span>
+                            <strong>${i.kit ? escapeHtml(i.kit) : '<span class="whats-on-tbc">Kit to be confirmed</span>'}</strong>
+                        </div>
+                        <div class="whats-on-when">${when}</div>
+                    </div>
+                </li>`;
+            }).join('')}
+        </ul>`;
+    return section;
 }
 
 // ── What's New section ────────────────────────────────────────────────────
@@ -138,8 +297,8 @@ function buildGotchasSection(gotchas) {
         <div class="gotchas-list${isOpen ? '' : ' hidden'}" id="gotchas-list">
             ${gotchas.map(g => `
                 <div class="gotcha-item">
-                    <div class="gotcha-issue">${g.issue}</div>
-                    <div class="gotcha-workaround"><strong>Workaround:</strong> ${g.workaround}</div>
+                    <div class="gotcha-issue">${escapeHtml(g.issue)}</div>
+                    <div class="gotcha-workaround"><strong>Workaround:</strong> ${escapeHtml(g.workaround)}</div>
                 </div>
             `).join('')}
         </div>
@@ -186,7 +345,7 @@ function buildGroupedSection(entries, filtersActive) {
             <div class="group-header">
                 <div class="group-header-left">
                     <span class="group-accent"></span>
-                    <h2 class="group-title">${type}</h2>
+                    <h2 class="group-title">${escapeHtml(type)}</h2>
                 </div>
                 <span class="group-count">${typeEntries.length} report${typeEntries.length !== 1 ? 's' : ''}</span>
             </div>
@@ -224,6 +383,7 @@ function render(entries, filtersActive) {
     if (!filtersActive) {
         const recent = entries.filter(e => isRecent(e.date));
         if (allGotchas.length > 0) root.appendChild(buildGotchasSection(allGotchas));
+        if (whatsOn.length > 0) root.appendChild(buildWhatsOnSection(whatsOn));
         if (recent.length > 0) root.appendChild(buildWhatsNewSection(recent));
     }
 
